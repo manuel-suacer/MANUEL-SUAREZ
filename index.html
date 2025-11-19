@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-g">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OPTIMIZADOR AVANZADO DE CORTE DESKPACE V. 2.0</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            'brand-primary': '#1E40AF',
+            'brand-secondary': '#10B981',
+            
+            // Light theme
+            'base-100': '#F9FAFB',
+            'base-200': '#F3F4F6',
+            'base-300': '#E5E7EB',
+            'content-100': '#1F2937',
+            'content-200': '#4B5563',
+
+            // Dark theme
+            'dark-base-100': '#0F172A', // slate-900
+            'dark-base-200': '#1E293B', // slate-800
+            'dark-base-300': '#334155', // slate-700
+            'dark-content-100': '#E2E8F0', // slate-200
+            'dark-content-200': '#94A3B8', // slate-400
+          }
+        }
+      }
+    }
+  </script>
+  <script>
+    // On page load or when changing themes, best to add inline in `head` to avoid FOUC
+    if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+    }
+  </script>
+<style>
+  @media print {
+    .dark {
+        --tw-bg-opacity: 1 !important;
+        background-color: #fff !important;
+        color: #000 !important;
+    }
+    .dark .dark\:print-hidden {
+        display: none !important;
+    }
+    .dark .bg-gray-900, .dark .bg-dark-base-200 {
+        background-color: #fff !important;
+    }
+    .dark .text-white, .dark .text-dark-content-100 {
+        color: #000 !important;
+    }
+    body * {
+      visibility: hidden;
+    }
+    #results-column, #results-column * {
+      visibility: visible;
+    }
+    #results-column {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+    }
+    header, #control-column {
+      display: none;
+    }
+  }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.29.1",
+    "jspdf": "https://aistudiocdn.com/jspdf@^2.5.1",
+    "jspdf-autotable": "https://aistudiocdn.com/jspdf-autotable@^3.8.2",
+    "html2canvas": "https://aistudiocdn.com/html2canvas@^1.4.1",
+    "konva": "https://aistudiocdn.com/konva@^9.3.13",
+    "react-konva": "https://aistudiocdn.com/react-konva@^19.2.0"
+  }
+}
+</script>
+</head>
+<body class="bg-base-200 dark:bg-dark-base-100 text-content-100 dark:text-dark-content-100 antialiased">
+  <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>

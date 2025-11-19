@@ -1,0 +1,5 @@
+{
+  "name": "OPTIMIZADOR AVANZADO DE CORTE DESKPACE V. 5.0",
+  "description": "Una aplicación avanzada para optimizar el corte de tableros en escuadradoras, seccionadoras y centros de mecanizado. Genera layouts eficientes para minimizar el desperdicio, considerando la veta de la madera y priorizando cortes continuos.",
+  "requestFramePermissions": []
+}
