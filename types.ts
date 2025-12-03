@@ -1,4 +1,5 @@
 
+
 export interface Piece {
   id: string;
   width: number;
@@ -6,6 +7,7 @@ export interface Piece {
   quantity: number;
   hasGrain: boolean;
   name: string;
+  reference?: string;
   grainContinuityGroup?: string;
   edgeTop: boolean;
   edgeBottom: boolean;

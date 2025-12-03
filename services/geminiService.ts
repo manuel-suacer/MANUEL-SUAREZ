@@ -1,5 +1,6 @@
 
 
+
 import { GoogleGenAI, Type } from "@google/genai";
 import type { Piece, Board, OptimizationResult } from '../types';
 
@@ -59,6 +60,7 @@ const generatePrompt = (board: Board, pieces: Piece[], kerf: number, machine: st
   const piecesJson = JSON.stringify(pieces.map(p => ({
     id: p.id,
     name: p.name,
+    reference: p.reference,
     width: p.width,
     height: p.height,
     quantity: p.quantity,

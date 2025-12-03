@@ -7,14 +7,14 @@ import html2canvas from 'html2canvas';
 import { getOptimalLayout } from './services/geminiService';
 import { analyzePieces } from './services/validationService';
 import type { Piece, Board, OptimizationResult, Layout } from './types';
-import { PlusIcon, TrashIcon, GrainIcon, WandIcon, DownloadIcon, RefreshIcon, CubeIcon, AlertTriangleIcon, FilePlusIcon, SaveIcon, PrinterIcon, TableIcon, SunIcon, MoonIcon, CheckIcon, PencilIcon, SawBladeIcon, RulerIcon, ClockIcon, SparklesIcon, XIcon, UploadIcon, CalculatorIcon, FolderOpenIcon, TagIcon } from './components/icons';
+import { PlusIcon, TrashIcon, GrainIcon, WandIcon, DownloadIcon, RefreshIcon, CubeIcon, AlertTriangleIcon, FilePlusIcon, SaveIcon, PrinterIcon, TableIcon, SunIcon, MoonIcon, CheckIcon, PencilIcon, SawBladeIcon, RulerIcon, ClockIcon, SparklesIcon, XIcon, UploadIcon, CalculatorIcon, FolderOpenIcon, TagIcon, FileDownloadIcon, FileUploadIcon } from './components/icons';
 import { LayoutDisplay } from './components/LayoutDisplay';
 
 const initialPieces: Piece[] = [
-    { id: 'p1', name: 'Puerta', width: 800, height: 400, quantity: 4, hasGrain: true, grainContinuityGroup: 'g-1', edgeTop: true, edgeBottom: true, edgeLeft: true, edgeRight: true },
-    { id: 'p2', name: 'Costado', width: 600, height: 300, quantity: 8, hasGrain: false, grainContinuityGroup: '', edgeTop: true, edgeBottom: false, edgeLeft: false, edgeRight: false },
-    { id: 'p3', name: 'Balda', width: 500, height: 200, quantity: 10, hasGrain: true, grainContinuityGroup: 'g-2', edgeTop: true, edgeBottom: false, edgeLeft: false, edgeRight: false },
-    { id: 'p4', name: 'Frente', width: 700, height: 150, quantity: 6, hasGrain: true, grainContinuityGroup: '', edgeTop: true, edgeBottom: true, edgeLeft: true, edgeRight: true },
+    { id: 'p1', name: 'Puerta', reference: 'P-01', width: 800, height: 400, quantity: 4, hasGrain: true, grainContinuityGroup: 'g-1', edgeTop: true, edgeBottom: true, edgeLeft: true, edgeRight: true },
+    { id: 'p2', name: 'Costado', reference: 'C-01', width: 600, height: 300, quantity: 8, hasGrain: false, grainContinuityGroup: '', edgeTop: true, edgeBottom: false, edgeLeft: false, edgeRight: false },
+    { id: 'p3', name: 'Balda', reference: 'B-01', width: 500, height: 200, quantity: 10, hasGrain: true, grainContinuityGroup: 'g-2', edgeTop: true, edgeBottom: false, edgeLeft: false, edgeRight: false },
+    { id: 'p4', name: 'Frente', reference: 'F-01', width: 700, height: 150, quantity: 6, hasGrain: true, grainContinuityGroup: '', edgeTop: true, edgeBottom: true, edgeLeft: true, edgeRight: true },
 ];
 
 const standardBoards: Board[] = [
@@ -22,6 +22,7 @@ const standardBoards: Board[] = [
     { name: 'Estándar Contrachapado (2440x1220)', width: 2440, height: 1220 },
     { name: 'Hoja Completa (2800x2100)', width: 2800, height: 2100 },
     { name: 'Media Hoja (1220x1220)', width: 1220, height: 1220 },
+    { name: 'HPL (3050x1310x20)', width: 3050, height: 1310 },
 ];
 
 const initialBoard: Board = standardBoards[0];
@@ -30,6 +31,7 @@ const pieceNameOptions = ['Puerta', 'Costado', 'Costado Visto', 'Frente de Cajon
 const newPieceInitialState = { 
     name: pieceNameOptions[0],
     customName: '',
+    reference: '',
     width: '', 
     height: '', 
     quantity: '1', 
@@ -62,6 +64,7 @@ interface SavedProject {
             cncHourlyRate: number;
         };
         customBoards: Board[];
+        projectName?: string;
     }
 }
 
@@ -159,7 +162,11 @@ const ProjectLibraryModal: React.FC<{
     projects: SavedProject[];
     onLoad: (project: SavedProject) => void;
     onDelete: (id: string) => void;
-}> = ({ isOpen, onClose, projects, onLoad, onDelete }) => {
+    onExport: (project: SavedProject) => void;
+    onImport: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}> = ({ isOpen, onClose, projects, onLoad, onDelete, onExport, onImport }) => {
+    const importInputRef = useRef<HTMLInputElement>(null);
+
     if (!isOpen) return null;
 
     return (
@@ -169,30 +176,39 @@ const ProjectLibraryModal: React.FC<{
                     <h3 className="text-xl font-bold flex items-center gap-2">
                         <FolderOpenIcon className="w-6 h-6 text-brand-primary"/> Mis Proyectos
                     </h3>
-                    <button onClick={onClose}><XIcon /></button>
+                    <div className="flex items-center gap-2">
+                        <button onClick={() => importInputRef.current?.click()} className="text-sm px-3 py-1.5 bg-base-200 dark:bg-dark-base-300 hover:bg-base-300 rounded flex items-center gap-1">
+                            <FileUploadIcon className="w-4 h-4" /> Importar Respaldo
+                        </button>
+                        <input type="file" ref={importInputRef} onChange={onImport} accept=".json" className="hidden" />
+                        <button onClick={onClose}><XIcon /></button>
+                    </div>
                 </div>
                 <div className="p-4 overflow-y-auto flex-grow">
                     {projects.length === 0 ? (
                         <div className="text-center py-10 text-content-200 dark:text-dark-content-200">
                             <p>No tienes proyectos guardados.</p>
-                            <p className="text-sm mt-2">Utiliza "Guardar como..." para añadir proyectos aquí.</p>
+                            <p className="text-sm mt-2">Utiliza "Guardar como..." para añadir proyectos aquí o importa un archivo JSON.</p>
                         </div>
                     ) : (
                         <div className="space-y-3">
                             {projects.sort((a, b) => b.createdAt - a.createdAt).map(p => (
-                                <div key={p.id} className="bg-base-200 dark:bg-dark-base-300 p-3 rounded-lg flex justify-between items-center hover:bg-base-300 dark:hover:bg-dark-base-100 transition-colors">
+                                <div key={p.id} className="bg-base-200 dark:bg-dark-base-300 p-3 rounded-lg flex flex-col sm:flex-row justify-between items-start sm:items-center hover:bg-base-300 dark:hover:bg-dark-base-100 transition-colors gap-3">
                                     <div>
                                         <h4 className="font-bold text-lg">{p.name}</h4>
                                         <p className="text-xs text-content-200 dark:text-dark-content-200">
                                             {new Date(p.createdAt).toLocaleDateString()} • {p.data.pieces.length} Piezas • {p.data.board.name}
                                         </p>
                                     </div>
-                                    <div className="flex gap-2">
-                                        <button onClick={() => onLoad(p)} className="bg-brand-primary text-white px-3 py-1.5 rounded text-sm font-medium hover:opacity-90">
+                                    <div className="flex gap-2 w-full sm:w-auto">
+                                        <button onClick={() => onLoad(p)} className="flex-1 sm:flex-none bg-brand-primary text-white px-3 py-1.5 rounded text-sm font-medium hover:opacity-90">
                                             Cargar
                                         </button>
-                                        <button onClick={() => onDelete(p.id)} className="text-red-500 hover:bg-red-100 dark:hover:bg-red-900 p-1.5 rounded">
-                                            <TrashIcon />
+                                        <button onClick={() => onExport(p)} title="Exportar a Archivo JSON" className="flex-1 sm:flex-none bg-base-100 dark:bg-dark-base-200 px-3 py-1.5 rounded text-sm font-medium hover:bg-base-300 dark:hover:bg-dark-base-100 flex items-center justify-center">
+                                            <FileDownloadIcon className="w-4 h-4" />
+                                        </button>
+                                        <button onClick={() => onDelete(p.id)} title="Eliminar" className="flex-1 sm:flex-none bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-3 py-1.5 rounded flex items-center justify-center hover:bg-red-200 dark:hover:bg-red-900/50">
+                                            <TrashIcon className="w-4 h-4"/>
                                         </button>
                                     </div>
                                 </div>
@@ -200,6 +216,50 @@ const ProjectLibraryModal: React.FC<{
                         </div>
                     )}
                 </div>
+            </div>
+        </div>
+    );
+};
+
+const SaveProjectModal: React.FC<{ 
+    isOpen: boolean; 
+    onClose: () => void; 
+    onSave: (name: string) => void; 
+    currentName: string;
+}> = ({ isOpen, onClose, onSave, currentName }) => {
+    const [name, setName] = useState(currentName);
+    
+    // Reset name when modal opens
+    useEffect(() => {
+        if (isOpen) setName(currentName);
+    }, [isOpen, currentName]);
+
+    if (!isOpen) return null;
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (name.trim()) onSave(name);
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4 print:hidden" onClick={onClose}>
+            <div className="bg-base-100 dark:bg-dark-base-200 rounded-lg shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+                <h3 className="text-lg font-bold mb-4 dark:text-dark-content-100">Guardar Proyecto Como...</h3>
+                <form onSubmit={handleSubmit}>
+                    <label className="block text-sm font-medium mb-2 text-content-200 dark:text-dark-content-200">Nombre del Proyecto</label>
+                    <input 
+                        autoFocus
+                        type="text" 
+                        value={name} 
+                        onChange={e => setName(e.target.value)}
+                        className="w-full p-2 bg-base-200 dark:bg-dark-base-300 border border-base-300 dark:border-dark-base-300 rounded-md mb-6 focus:ring-2 focus:ring-brand-primary outline-none"
+                        placeholder="Ej. Armario Dormitorio"
+                    />
+                    <div className="flex gap-3 justify-end">
+                        <button type="button" onClick={onClose} className="px-4 py-2 rounded-md hover:bg-base-200 dark:hover:bg-dark-base-300 transition-colors">Cancelar</button>
+                        <button type="submit" disabled={!name.trim()} className="bg-brand-primary text-white px-4 py-2 rounded-md hover:opacity-90 transition-opacity disabled:opacity-50">Guardar</button>
+                    </div>
+                </form>
             </div>
         </div>
     );
@@ -228,6 +288,10 @@ const App: React.FC = () => {
   const [customBoardData, setCustomBoardData] = useState({ name: '', width: '', height: '' });
   const [isPricingModalOpen, setIsPricingModalOpen] = useState(false);
   const [isProjectLoaded, setIsProjectLoaded] = useState(false);
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+  
+  // Project State
+  const [projectName, setProjectName] = useState<string>("Proyecto Sin Título");
   
   // Project Library State
   const [savedProjects, setSavedProjects] = useState<SavedProject[]>([]);
@@ -262,7 +326,7 @@ const App: React.FC = () => {
     try {
       const savedProject = localStorage.getItem('deskspace_project');
       if (savedProject) {
-        const { board: savedBoard, pieces: savedPieces, kerf: savedKerf, machine: savedMachine, forceGuillotineCuts: savedForceGuillotine, cncSpeed: savedCncSpeed, costs: savedCosts } = JSON.parse(savedProject);
+        const { board: savedBoard, pieces: savedPieces, kerf: savedKerf, machine: savedMachine, forceGuillotineCuts: savedForceGuillotine, cncSpeed: savedCncSpeed, costs: savedCosts, projectName: savedName } = JSON.parse(savedProject);
         if (savedBoard) setBoard(savedBoard);
         if (savedPieces) {
              const loadedPieces = savedPieces.map((p: any) => ({
@@ -271,6 +335,7 @@ const App: React.FC = () => {
                 edgeBottom: p.edgeBottom || false,
                 edgeLeft: p.edgeLeft || false,
                 edgeRight: p.edgeRight || false,
+                reference: p.reference || '',
             }));
             setPieces(loadedPieces);
         }
@@ -279,6 +344,7 @@ const App: React.FC = () => {
         if (savedForceGuillotine !== undefined) setForceGuillotineCuts(savedForceGuillotine);
         if (savedCncSpeed) setCncSpeed(savedCncSpeed);
         if (savedCosts) setCosts(savedCosts);
+        if (savedName) setProjectName(savedName);
         
         setIsProjectLoaded(true);
         setTimeout(() => setIsProjectLoaded(false), 3000);
@@ -302,7 +368,7 @@ const App: React.FC = () => {
   useEffect(() => {
       const timeoutId = setTimeout(() => {
           try {
-              const projectData = { board, pieces, kerf, machine, forceGuillotineCuts, cncSpeed, costs };
+              const projectData = { board, pieces, kerf, machine, forceGuillotineCuts, cncSpeed, costs, projectName };
               localStorage.setItem('deskspace_project', JSON.stringify(projectData));
           } catch (e) {
               console.error("Failed to auto-save project", e);
@@ -310,7 +376,7 @@ const App: React.FC = () => {
       }, 1000); // Debounce save by 1s
 
       return () => clearTimeout(timeoutId);
-  }, [board, pieces, kerf, machine, forceGuillotineCuts, cncSpeed, costs]);
+  }, [board, pieces, kerf, machine, forceGuillotineCuts, cncSpeed, costs, projectName]);
 
   const totalEdgeBandingMeters = useMemo(() => {
     if (!pieces || pieces.length === 0) {
@@ -374,7 +440,7 @@ const App: React.FC = () => {
 
   const handleAddPiece = () => {
     const finalName = newPiece.name === 'Otro...' ? newPiece.customName : newPiece.name;
-    const { width, height, quantity } = newPiece;
+    const { width, height, quantity, reference } = newPiece;
     const numWidth = parseInt(width, 10);
     const numHeight = parseInt(height, 10);
     const numQuantity = parseInt(quantity, 10);
@@ -383,6 +449,7 @@ const App: React.FC = () => {
       const pieceData = {
           ...newPiece,
           name: finalName,
+          reference: reference || '',
           width: numWidth,
           height: numHeight,
           quantity: numQuantity
@@ -410,6 +477,7 @@ const App: React.FC = () => {
     setNewPiece({
         name: isStandardName ? piece.name : 'Otro...',
         customName: isStandardName ? '' : piece.name,
+        reference: piece.reference || '',
         width: String(piece.width),
         height: String(piece.height),
         quantity: String(piece.quantity),
@@ -451,11 +519,13 @@ const App: React.FC = () => {
                       const height = parseInt(cols[2]);
                       const quantity = cols[3] ? parseInt(cols[3]) : 1;
                       const hasGrain = cols[4] ? cols[4].toLowerCase().includes('s') || cols[4].toLowerCase().includes('y') || cols[4] === '1' : false;
+                      const reference = cols.length > 5 ? cols[5].trim() : '';
 
                       if (!isNaN(width) && !isNaN(height) && !isNaN(quantity)) {
                           newPieces.push({
                               id: `p-csv-${Date.now()}-${i}`,
                               name,
+                              reference,
                               width,
                               height,
                               quantity,
@@ -520,108 +590,143 @@ const App: React.FC = () => {
     }
   };
   
-  const handleExportPDF = async () => {
+  const handleGenerateReport = async (action: 'download' | 'print') => {
     if (!editedResult) return;
     setIsExporting(true);
 
-    const doc = new jsPDF({
-        orientation: board.width > board.height ? 'l' : 'p',
-        unit: 'mm',
-        format: [board.width, board.height]
-    });
-    const margin = 10;
-    
-    // Title Page
-    doc.setFontSize(22);
-    doc.text('Plan de Corte Optimizado', doc.internal.pageSize.getWidth() / 2, margin + 10, { align: 'center' });
-    doc.setFontSize(12);
-    doc.text(`Proyecto generado el ${new Date().toLocaleString()}`, doc.internal.pageSize.getWidth() / 2, margin + 20, { align: 'center' });
+    try {
+        const doc = new jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: 'a4'
+        });
+        
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const margin = 15;
+        const writableWidth = pageWidth - (margin * 2);
 
-    const summaryData = [
-            ['Tablero', `${board.name || 'Personalizado'} (${board.width}x${board.height}mm)`],
-            ['Espesor de corte (Kerf)', `${kerf}mm`],
-            ['Máquina', machine],
-            ['Total de Tableros', editedResult.totalBoards.toString()],
-            ['Desperdicio Estimado', `${editedResult.estimatedWastePercentage.toFixed(2)}%`],
-            ['Corte Lineal Total', `${(editedResult.totalCorteMetrosLineales / 1000).toFixed(2)}m`],
-            ['Número de Cortes', `${editedResult.totalNumberOfCuts || 'N/A'}`],
-            ['Canto Total (Lineal)', `${totalEdgeBandingMeters.toFixed(2)}m`],
+        // Header Information
+        doc.setFontSize(18);
+        doc.setTextColor(40);
+        doc.text('Reporte de Optimización de Corte', pageWidth / 2, margin + 5, { align: 'center' });
+        
+        doc.setFontSize(10);
+        doc.setTextColor(100);
+        doc.text(`Generado: ${new Date().toLocaleString()}`, pageWidth / 2, margin + 12, { align: 'center' });
+
+        // Project Summary Table
+        const summaryBody = [
+            ['Proyecto', projectName],
+            ['Tablero Base', `${board.name} (${board.width} x ${board.height} mm)`],
+            ['Máquina / Kerf', `${machine === 'seccionadora' ? 'Seccionadora' : 'CNC'} / ${kerf} mm`],
+            ['Total Tableros', editedResult.totalBoards.toString()],
+            ['Desperdicio Global', `${editedResult.estimatedWastePercentage.toFixed(2)}%`],
+            ['Corte Lineal', `${(editedResult.totalCorteMetrosLineales / 1000).toFixed(2)} m`],
+            ['Canto Total', `${totalEdgeBandingMeters.toFixed(2)} m`],
         ];
+        
+        if (estimatedTotalCost > 0) {
+            summaryBody.push(['Costo Estimado', `$${estimatedTotalCost.toFixed(2)}`]);
+        }
 
-    if (estimatedTotalCost > 0) {
-        summaryData.push(['Costo Total Estimado', `$${estimatedTotalCost.toFixed(2)}`]);
-    }
+        autoTable(doc, {
+            startY: margin + 20,
+            head: [['Parámetro', 'Valor']],
+            body: summaryBody,
+            theme: 'striped',
+            headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+            styles: { fontSize: 10, cellPadding: 3 },
+            margin: { left: margin, right: margin }
+        });
 
-    autoTable(doc, {
-        startY: margin + 30,
-        head: [['Parámetro', 'Valor']],
-        body: summaryData,
-        theme: 'striped'
-    });
-
-    autoTable(doc, {
-        head: [['ID', 'Nombre', 'Dimensiones (LxA)', 'Cant.', 'Veta', 'Canteado']],
-        body: pieces.map(p => {
+        // Pieces List
+        const piecesBody = pieces.map(p => {
              const edges = [];
              if (p.edgeTop) edges.push('S');
              if (p.edgeBottom) edges.push('I');
-             if (p.edgeLeft) edges.push('Izq');
-             if (p.edgeRight) edges.push('Der');
-             return [p.id.slice(0, 4), p.name, `${p.width}x${p.height}`, p.quantity, p.hasGrain ? 'Sí' : 'No', edges.join(', ')]
-        }),
-        theme: 'grid'
-    });
+             if (p.edgeLeft) edges.push('Iz');
+             if (p.edgeRight) edges.push('De');
+             return [
+                 p.name, 
+                 p.reference || '-', 
+                 `${p.width} x ${p.height}`, 
+                 p.quantity, 
+                 p.hasGrain ? 'Sí' : 'No', 
+                 edges.join(' ')
+            ];
+        });
 
-    const currentActiveTab = activeLayoutTab;
+        autoTable(doc, {
+            startY: (doc as any).lastAutoTable.finalY + 10,
+            head: [['Pieza', 'Ref', 'Dim (mm)', 'Cant', 'Veta', 'Canto']],
+            body: piecesBody,
+            theme: 'grid',
+            headStyles: { fillColor: [52, 73, 94], textColor: 255 },
+            styles: { fontSize: 9, cellPadding: 2 },
+            margin: { left: margin, right: margin }
+        });
 
-    for (let i = 0; i < editedResult.layouts.length; i++) {
-        doc.addPage([board.width, board.height], board.width > board.height ? 'l' : 'p');
-        
-        setActiveLayoutTab(i);
+        // Layout Images
+        let currentY = (doc as any).lastAutoTable.finalY + 15;
+        const currentActiveTab = activeLayoutTab;
 
-        // Wait for React to re-render and browser to paint. This is more reliable than a fixed timeout.
-        await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 100)));
-
-        const layoutElement = document.getElementById(`layout-display-${i}`);
-        
-        if (layoutElement && layoutElement.clientWidth > 0 && layoutElement.clientHeight > 0) {
-            const canvas = await html2canvas(layoutElement, {
-                scale: 2,
-                backgroundColor: theme === 'dark' ? '#0F172A' : '#F9FAFB',
-                allowTaint: true, // Fix for potential Konva canvas tainting issues
-                useCORS: true, 
-            });
-            const imgData = canvas.toDataURL('image/png');
-            const pageWidth = doc.internal.pageSize.getWidth();
-            const pageHeight = doc.internal.pageSize.getHeight();
-            const imgWidth = pageWidth - margin * 2;
-            const imgHeight = canvas.height * imgWidth / canvas.width;
-            let finalImgHeight = imgHeight;
-            let finalImgWidth = imgWidth;
-
-            if (imgHeight > pageHeight - margin * 2) {
-                finalImgHeight = pageHeight - margin * 2;
-                finalImgWidth = canvas.width * finalImgHeight / canvas.height;
+        for (let i = 0; i < editedResult.layouts.length; i++) {
+            if (currentY + 60 > pageHeight) { 
+                doc.addPage();
+                currentY = margin;
+            } else if (i > 0) {
+                 doc.addPage();
+                 currentY = margin;
+            } else {
+                 if (currentY > pageHeight - 50) {
+                     doc.addPage();
+                     currentY = margin;
+                 }
             }
 
-            const x = (pageWidth - finalImgWidth) / 2;
-            const y = margin + 10;
-            
-            doc.setFontSize(16);
-            doc.text(`Layout del Tablero ${i + 1}`, margin, margin);
-            doc.addImage(imgData, 'PNG', x, y, finalImgWidth, finalImgHeight);
-        } else {
-            console.error(`Error: Could not capture layout for board ${i + 1}. Element not found or has zero dimensions.`);
-            doc.setFontSize(12);
-            doc.setTextColor(255, 0, 0);
-            doc.text(`Error: No se pudo renderizar la imagen para el Tablero ${i + 1}.`, margin, margin + 20);
-            doc.setTextColor(0, 0, 0);
+            // Switch Tab to render
+            setActiveLayoutTab(i);
+            await new Promise(resolve => setTimeout(resolve, 250));
+
+            const layoutElement = document.getElementById(`layout-display-${i}`);
+            if (layoutElement) {
+                 const canvas = await html2canvas(layoutElement, {
+                    scale: 2,
+                    backgroundColor: '#ffffff',
+                    logging: false
+                });
+                
+                const imgData = canvas.toDataURL('image/png');
+                const imgProps = doc.getImageProperties(imgData);
+                const pdfImgWidth = writableWidth;
+                const pdfImgHeight = (imgProps.height * pdfImgWidth) / imgProps.width;
+
+                doc.setFontSize(12);
+                doc.setTextColor(0);
+                doc.setFont("helvetica", "bold");
+                doc.text(`Tablero ${i + 1} - Desperdicio: ${editedResult.layouts[i].boardWastePercentage.toFixed(2)}%`, margin, currentY + 5);
+                
+                doc.addImage(imgData, 'PNG', margin, currentY + 10, pdfImgWidth, pdfImgHeight);
+            }
         }
+
+        setActiveLayoutTab(currentActiveTab);
+
+        if (action === 'download') {
+            doc.save(`${projectName.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'proyecto'}_corte.pdf`);
+        } else {
+            doc.autoPrint();
+            const blobUrl = doc.output('bloburl');
+            window.open(blobUrl, '_blank');
+        }
+
+    } catch (err) {
+        console.error("Error generating report:", err);
+        alert("Hubo un error generando el reporte. Por favor intenta de nuevo.");
+    } finally {
+        setIsExporting(false);
     }
-    
-    setActiveLayoutTab(currentActiveTab);
-    doc.save(`plan-de-corte-${Date.now()}.pdf`);
-    setIsExporting(false);
   };
 
   const handleGenerateLabels = () => {
@@ -668,10 +773,16 @@ const App: React.FC = () => {
             doc.setFontSize(14);
             doc.setFont('helvetica', 'bold');
             doc.text(piece.name.substring(0, 15), x + 5, y + 10);
+            
+            if (originalPiece?.reference) {
+                doc.setFontSize(10);
+                doc.setFont('helvetica', 'normal');
+                doc.text(`Ref: ${originalPiece.reference}`, x + 5, y + 15);
+            }
 
             doc.setFontSize(11);
             doc.setFont('helvetica', 'normal');
-            doc.text(`${piece.width} x ${piece.height} mm`, x + 5, y + 16);
+            doc.text(`${piece.width} x ${piece.height} mm`, x + 5, y + 21);
 
             // Edge Indicators
             const edges = [];
@@ -683,28 +794,28 @@ const App: React.FC = () => {
             if (edges.length > 0) {
                  doc.setFontSize(8);
                  doc.setTextColor(50, 50, 50);
-                 doc.text(`Cantos: ${edges.join(', ')}`, x + 5, y + 22);
+                 doc.text(`Cantos: ${edges.join(', ')}`, x + 5, y + 27);
             }
 
-            // Board ID
-            doc.setFontSize(8);
+            // Board ID and Project Name
+            doc.setFontSize(7);
             doc.setTextColor(100, 100, 100);
-            doc.text(`T${layout.boardIndex + 1} | ID: ${piece.id.substring(0, 4)}`, x + 5, y + labelHeight - 6);
+            const footerText = `${projectName.substring(0, 15)} | T${layout.boardIndex + 1}`;
+            doc.text(footerText, x + 5, y + labelHeight - 6);
 
             currentLabel++;
         });
     });
 
-    doc.save(`etiquetas-${Date.now()}.pdf`);
+    doc.save(`${projectName.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'proyecto'}_etiquetas.pdf`);
   };
 
-  const handleSaveAsProject = () => {
-      const projectName = prompt("Nombre del proyecto:");
-      if (!projectName) return;
+  const handleSaveConfirm = (nameToSave: string) => {
+      setProjectName(nameToSave);
 
       const newProject: SavedProject = {
           id: `proj-${Date.now()}`,
-          name: projectName,
+          name: nameToSave,
           createdAt: Date.now(),
           data: {
               board,
@@ -714,15 +825,23 @@ const App: React.FC = () => {
               forceGuillotineCuts,
               cncSpeed,
               costs,
-              customBoards
+              customBoards,
+              projectName: nameToSave
           }
       };
 
       const updatedProjects = [...savedProjects, newProject];
       setSavedProjects(updatedProjects);
-      localStorage.setItem('deskspace_saved_projects', JSON.stringify(updatedProjects));
-      setSaveMessage(`Proyecto "${projectName}" guardado.`);
-      setTimeout(() => setSaveMessage(''), 3000);
+      
+      try {
+        localStorage.setItem('deskspace_saved_projects', JSON.stringify(updatedProjects));
+        setSaveMessage(`Proyecto "${nameToSave}" guardado.`);
+        setTimeout(() => setSaveMessage(''), 3000);
+      } catch (e) {
+        console.error("Storage error", e);
+        alert("No se pudo guardar el proyecto. Es posible que el almacenamiento del navegador esté lleno.");
+      }
+      setIsSaveModalOpen(false);
   };
 
   const handleLoadProject = (project: SavedProject) => {
@@ -735,6 +854,8 @@ const App: React.FC = () => {
           setCncSpeed(project.data.cncSpeed);
           setCosts(project.data.costs);
           if(project.data.customBoards) setCustomBoards(project.data.customBoards);
+          if (project.data.projectName) setProjectName(project.data.projectName);
+          else setProjectName(project.name);
           
           // Reset results
           setResult(null);
@@ -752,31 +873,85 @@ const App: React.FC = () => {
           localStorage.setItem('deskspace_saved_projects', JSON.stringify(updated));
       }
   };
+
+  const handleExportProject = (project: SavedProject) => {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(project));
+    const downloadAnchorNode = document.createElement('a');
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute("download", `${project.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.json`);
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
+  };
+
+  const handleImportProject = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        try {
+            const content = event.target?.result as string;
+            const project = JSON.parse(content) as SavedProject;
+            
+            // Basic validation
+            if (!project.id || !project.data || !project.data.pieces) {
+                throw new Error("Formato de archivo inválido");
+            }
+            
+            // Assign new ID to avoid conflicts if re-importing
+            project.id = `proj-${Date.now()}`;
+            project.name = `${project.name} (Importado)`;
+            project.createdAt = Date.now();
+
+            const updatedProjects = [...savedProjects, project];
+            setSavedProjects(updatedProjects);
+            localStorage.setItem('deskspace_saved_projects', JSON.stringify(updatedProjects));
+            
+            setSaveMessage(`Proyecto "${project.name}" importado.`);
+            setTimeout(() => setSaveMessage(''), 3000);
+
+        } catch (err) {
+            console.error("Error importing project", err);
+            alert("Error al importar el archivo. Asegúrate de que es un archivo JSON válido de Deskspace.");
+        } finally {
+            // Reset input
+            e.target.value = '';
+        }
+    };
+    reader.readAsText(file);
+  };
   
-  // The existing manual save is really just saving the 'current' unnamed project state
   const handleManualSave = () => {
-      const projectData = { board, pieces, kerf, machine, forceGuillotineCuts, cncSpeed, costs };
+      const projectData = { board, pieces, kerf, machine, forceGuillotineCuts, cncSpeed, costs, projectName };
       localStorage.setItem('deskspace_project', JSON.stringify(projectData));
-      setSaveMessage('¡Proyecto actual actualizado!');
+      setSaveMessage('¡Estado actual guardado!');
+      // Scroll to top of sidebar on mobile to show message
+      const controlColumn = document.getElementById('control-column');
+      if (controlColumn) controlColumn.scrollTop = 0;
       setTimeout(() => setSaveMessage(''), 3000);
   }
 
   const handleResetProject = () => {
-      if (window.confirm("¿Estás seguro de que quieres reiniciar el proyecto? Se borrarán todos los datos actuales y la copia guardada.")) {
+      if (window.confirm("¿Estás seguro de que quieres reiniciar el proyecto? Se borrarán todos los datos actuales.")) {
           localStorage.removeItem('deskspace_project');
-          // Reset all states to defaults
-          setBoard(initialBoard);
-          setPieces(initialPieces);
+          // Use deep copy to ensure state updates trigger re-render even if values look similar
+          setBoard({...initialBoard});
+          // Deep copy pieces array
+          setPieces(initialPieces.map(p => ({...p}))); 
           setKerf(3);
           setMachine('seccionadora');
           setForceGuillotineCuts(true);
           setCncSpeed(5000);
           setResult(null);
           setEditedResult(null);
-          setNewPiece(newPieceInitialState);
+          setNewPiece({...newPieceInitialState});
           setEditingPieceId(null);
           setWarnings([]);
           setCosts({ boardPrice: 0, edgePricePerMeter: 0, cncHourlyRate: 0 });
+          setProjectName("Proyecto Sin Título");
+          setSaveMessage("Proyecto reiniciado");
+          setTimeout(() => setSaveMessage(''), 3000);
       }
   };
 
@@ -809,15 +984,23 @@ const App: React.FC = () => {
 
 
   return (
-    <div className="flex flex-col h-screen font-sans">
+    <div className="flex flex-col min-h-screen md:h-screen font-sans">
       <ProjectLibraryModal 
         isOpen={isProjectLibraryOpen} 
         onClose={() => setIsProjectLibraryOpen(false)} 
         projects={savedProjects}
         onLoad={handleLoadProject}
         onDelete={handleDeleteProject}
+        onExport={handleExportProject}
+        onImport={handleImportProject}
       />
-      <header className="bg-base-100 dark:bg-dark-base-200 shadow-md p-3 flex justify-between items-center print:hidden">
+      <SaveProjectModal 
+        isOpen={isSaveModalOpen} 
+        onClose={() => setIsSaveModalOpen(false)} 
+        onSave={handleSaveConfirm} 
+        currentName={projectName} 
+      />
+      <header className="bg-base-100 dark:bg-dark-base-200 shadow-md p-3 flex justify-between items-center print:hidden flex-shrink-0 z-20 relative">
         <div className="flex items-center gap-3">
           <CubeIcon className="w-8 h-8 text-brand-primary" />
           <h1 className="text-xl font-bold text-content-100 dark:text-dark-content-100 hidden sm:block">OPTIMIZADOR AVANZADO DESKPACE</h1>
@@ -837,17 +1020,45 @@ const App: React.FC = () => {
         </div>
       </header>
       
-      <div className="flex-grow flex flex-col md:flex-row overflow-hidden">
+      {/* 
+         Mobile Layout: Stacked, Scrollable Document (no fixed height).
+         Desktop Layout: Row, Fixed Height with Independent Scrollbars (h-screen, overflow-hidden).
+      */}
+      <div className="flex-grow flex flex-col md:flex-row md:overflow-hidden h-auto md:h-full">
         {/* Control Column */}
-        <div id="control-column" className="w-full md:w-1/3 lg:w-1/4 xl:w-1/5 p-4 overflow-y-auto bg-base-100 dark:bg-dark-base-200 border-r border-base-300 dark:border-dark-base-300 print:hidden">
+        <div id="control-column" className="w-full md:w-1/3 lg:w-1/4 xl:w-1/5 p-4 bg-base-100 dark:bg-dark-base-200 border-r border-base-300 dark:border-dark-base-300 print:hidden h-auto md:overflow-y-auto md:h-full flex-shrink-0">
+          
+          {/* Notifications area */}
+           <div className="mb-4 space-y-2">
+                {isProjectLoaded && (
+                    <div className="p-2 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-xs rounded-md flex items-center gap-2 animate-fade-in">
+                        <CheckIcon className="w-4 h-4"/> Restaurado auto-guardado
+                    </div>
+                )}
+                {saveMessage && (
+                    <div className="p-2 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs rounded-md flex items-center gap-2 justify-center animate-pulse">
+                        <CheckIcon className="w-4 h-4"/> {saveMessage}
+                    </div>
+                )}
+           </div>
+
           {/* Project Settings */}
           <section>
             <h2 className="text-lg font-semibold mb-3">Configuración del Proyecto</h2>
-            {isProjectLoaded && (
-                <div className="mb-3 p-2 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-xs rounded-md flex items-center gap-2">
-                    <CheckIcon className="w-4 h-4"/> Restaurado auto-guardado
+            
+            <div className="mb-4">
+                <label className="block text-sm font-medium mb-1">Nombre del Proyecto</label>
+                <div className="flex gap-2">
+                    <input 
+                        type="text" 
+                        value={projectName} 
+                        onChange={(e) => setProjectName(e.target.value)} 
+                        className="w-full p-2 bg-base-200 dark:bg-dark-base-300 border border-base-300 dark:border-dark-base-300 rounded-md font-semibold"
+                        placeholder="Ej. Cocina Cliente García"
+                    />
                 </div>
-            )}
+            </div>
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Tablero</label>
@@ -944,7 +1155,7 @@ const App: React.FC = () => {
                 return (
                 <div key={p.id} className="bg-base-200 dark:bg-dark-base-300 p-2 rounded-md flex items-center justify-between">
                   <div>
-                    <p className="font-semibold">{p.name} <span className="text-sm font-normal text-content-200 dark:text-dark-content-200">x{p.quantity}</span></p>
+                    <p className="font-semibold">{p.name} <span className="text-sm font-normal text-content-200 dark:text-dark-content-200">{p.reference ? `[${p.reference}] ` : ''}x{p.quantity}</span></p>
                     <p className="text-sm text-content-200 dark:text-dark-content-200">
                         {p.width} x {p.height} mm 
                         {p.hasGrain && <GrainIcon className="inline w-4 h-4 ml-1" />}
@@ -961,12 +1172,19 @@ const App: React.FC = () => {
             
             <div className="bg-base-200 dark:bg-dark-base-300 p-3 rounded-lg space-y-3">
               <h3 className="font-semibold text-md">{editingPieceId ? 'Editar Pieza' : 'Añadir Pieza'}</h3>
-              <select name="name" value={newPiece.name} onChange={handleInputChange} className="w-full p-2 bg-base-100 dark:bg-dark-base-200 border-base-300 dark:border-dark-base-300 rounded-md">
-                {pieceNameOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-              </select>
-              {newPiece.name === 'Otro...' && 
-                <input type="text" name="customName" placeholder="Nombre personalizado" value={newPiece.customName} onChange={handleInputChange} className="w-full p-2 bg-base-100 dark:bg-dark-base-200 border-base-300 dark:border-dark-base-300 rounded-md" />
-              }
+              <div className="flex gap-2">
+                  <div className="w-2/3">
+                    <select name="name" value={newPiece.name} onChange={handleInputChange} className="w-full p-2 bg-base-100 dark:bg-dark-base-200 border-base-300 dark:border-dark-base-300 rounded-md">
+                        {pieceNameOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                    </select>
+                    {newPiece.name === 'Otro...' && 
+                        <input type="text" name="customName" placeholder="Nombre personalizado" value={newPiece.customName} onChange={handleInputChange} className="w-full mt-2 p-2 bg-base-100 dark:bg-dark-base-200 border-base-300 dark:border-dark-base-300 rounded-md" />
+                    }
+                  </div>
+                  <div className="w-1/3">
+                      <input type="text" name="reference" placeholder="Ref." value={newPiece.reference} onChange={handleInputChange} className="w-full p-2 bg-base-100 dark:bg-dark-base-200 border-base-300 dark:border-dark-base-300 rounded-md" />
+                  </div>
+              </div>
               <div className="flex gap-2">
                 <input type="number" name="width" placeholder="Largo (mm)" value={newPiece.width} onChange={handleInputChange} className="w-1/2 p-2 bg-base-100 dark:bg-dark-base-200 border-base-300 dark:border-dark-base-300 rounded-md" />
                 <input type="number" name="height" placeholder="Ancho (mm)" value={newPiece.height} onChange={handleInputChange} className="w-1/2 p-2 bg-base-100 dark:bg-dark-base-200 border-base-300 dark:border-dark-base-300 rounded-md" />
@@ -1012,32 +1230,31 @@ const App: React.FC = () => {
           
           <hr className="my-6 border-base-300 dark:border-dark-base-300"/>
 
-          <section className="space-y-3">
+          <section className="space-y-3 pb-8 md:pb-0">
               <button onClick={handleOptimize} disabled={isLoading} className="w-full bg-brand-primary text-white p-3 rounded-lg flex items-center justify-center gap-2 text-lg font-bold hover:opacity-90 transition-opacity disabled:opacity-50">
                   <WandIcon className="w-6 h-6" />
                   Optimizar
               </button>
               <div className="grid grid-cols-2 gap-2">
-                 <button onClick={handleSaveAsProject} className="bg-base-200 dark:bg-dark-base-300 p-2 rounded-md flex items-center justify-center gap-2 hover:bg-base-300 dark:hover:bg-dark-base-100 transition-colors text-xs sm:text-sm">
+                 <button onClick={() => setIsSaveModalOpen(true)} className="bg-base-200 dark:bg-dark-base-300 p-2 rounded-md flex items-center justify-center gap-2 hover:bg-base-300 dark:hover:bg-dark-base-100 transition-colors text-xs sm:text-sm">
                     <SaveIcon/> Guardar Como...
                 </button>
                 <button onClick={handleManualSave} className="bg-base-200 dark:bg-dark-base-300 p-2 rounded-md flex items-center justify-center gap-2 hover:bg-base-300 dark:hover:bg-dark-base-100 transition-colors text-xs sm:text-sm">
-                    <CheckIcon/> Actualizar
+                    <CheckIcon/> Guardar Estado
                 </button>
               </div>
               <button onClick={handleResetProject} className="w-full bg-base-200 dark:bg-dark-base-300 p-2 rounded-md flex items-center justify-center gap-2 hover:bg-base-300 dark:hover:bg-dark-base-100 transition-colors text-red-600 dark:text-red-400 text-sm">
-                 <RefreshIcon/> Reiniciar
+                 <RefreshIcon/> Reiniciar Proyecto
               </button>
-              {saveMessage && <div className="text-green-600 dark:text-green-400 text-sm flex items-center gap-2 justify-center animate-fade-in"><CheckIcon/>{saveMessage}</div>}
           </section>
 
         </div>
 
         {/* Results Column */}
-        <main id="results-column" className="flex-grow w-full md:w-2/3 lg:w-3/4 xl:w-4/5 p-4 md:p-6 overflow-y-auto bg-base-200 dark:bg-dark-base-100">
+        <main id="results-column" className="flex-grow w-full md:w-2/3 lg:w-3/4 xl:w-4/5 p-4 md:p-6 bg-base-200 dark:bg-dark-base-100 h-auto md:overflow-y-auto md:h-full">
           <PricingModal isOpen={isPricingModalOpen} onClose={() => setIsPricingModalOpen(false)} />
           {isLoading && (
-            <div className="flex flex-col items-center justify-center h-full text-center">
+            <div className="flex flex-col items-center justify-center min-h-[50vh] text-center">
               <WandIcon className="w-16 h-16 text-brand-primary animate-pulse" />
               <p className="mt-4 text-xl font-semibold">Optimizando, por favor espera...</p>
               <p className="text-content-200 dark:text-dark-content-200">El algoritmo está buscando la mejor distribución para tus piezas.</p>
@@ -1047,12 +1264,12 @@ const App: React.FC = () => {
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                 <div className="bg-white dark:bg-dark-base-200 p-6 rounded-lg shadow-xl text-center">
                     <DownloadIcon className="w-12 h-12 mx-auto text-brand-primary animate-bounce" />
-                    <p className="mt-4 font-semibold text-lg">Generando PDF...</p>
+                    <p className="mt-4 font-semibold text-lg">Generando Reporte...</p>
                 </div>
             </div>
           )}
           {error && (
-            <div className="flex flex-col items-center justify-center h-full text-center">
+            <div className="flex flex-col items-center justify-center min-h-[50vh] text-center">
               <div className="bg-red-100 dark:bg-red-900 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-200 px-4 py-3 rounded-lg relative max-w-md">
                 <strong className="font-bold flex items-center gap-2"><AlertTriangleIcon />¡Error!</strong>
                 <span className="block sm:inline mt-2">{error}</span>
@@ -1068,8 +1285,8 @@ const App: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                     <button onClick={handleGenerateLabels} className="px-4 py-2 bg-base-100 dark:bg-dark-base-200 rounded-md flex items-center gap-2 text-sm font-semibold hover:bg-base-300 dark:hover:bg-dark-base-300 border border-base-300 dark:border-dark-base-300"><TagIcon /> Etiquetas</button>
-                    <button onClick={() => window.print()} className="px-4 py-2 bg-base-100 dark:bg-dark-base-200 rounded-md flex items-center gap-2 text-sm font-semibold hover:bg-base-300 dark:hover:bg-dark-base-300 border border-base-300 dark:border-dark-base-300"><PrinterIcon /> Imprimir</button>
-                    <button onClick={handleExportPDF} className="px-4 py-2 bg-base-100 dark:bg-dark-base-200 rounded-md flex items-center gap-2 text-sm font-semibold hover:bg-base-300 dark:hover:bg-dark-base-300 border border-base-300 dark:border-dark-base-300"><DownloadIcon /> PDF</button>
+                    <button onClick={() => handleGenerateReport('print')} className="px-4 py-2 bg-base-100 dark:bg-dark-base-200 rounded-md flex items-center gap-2 text-sm font-semibold hover:bg-base-300 dark:hover:bg-dark-base-300 border border-base-300 dark:border-dark-base-300"><PrinterIcon /> Imprimir</button>
+                    <button onClick={() => handleGenerateReport('download')} className="px-4 py-2 bg-base-100 dark:bg-dark-base-200 rounded-md flex items-center gap-2 text-sm font-semibold hover:bg-base-300 dark:hover:bg-dark-base-300 border border-base-300 dark:border-dark-base-300"><DownloadIcon /> PDF</button>
                 </div>
               </header>
 
@@ -1139,7 +1356,7 @@ const App: React.FC = () => {
             </div>
           )}
            {!isLoading && !error && !result && (
-                <div className="flex flex-col items-center justify-center h-full text-center">
+                <div className="flex flex-col items-center justify-center min-h-[50vh] text-center">
                     <CubeIcon className="w-20 h-20 text-gray-400 dark:text-gray-600" />
                     <h2 className="mt-4 text-2xl font-semibold">Bienvenido al Optimizador de Corte</h2>
                     <p className="mt-2 text-content-200 dark:text-dark-content-200 max-w-md">

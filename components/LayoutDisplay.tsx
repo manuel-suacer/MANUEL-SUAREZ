@@ -1,3 +1,4 @@
+
 import React, { useMemo, useRef, useState, useEffect, useCallback } from 'react';
 import { Stage, Layer, Rect, Text, Group, Line } from 'react-konva';
 import Konva from 'konva';
@@ -199,7 +200,9 @@ const PieceComponent = React.memo(({ piece, originalPiece, allPieces, board, onP
     const selectedEdgeColor = theme === 'dark' ? '#FBBF24' : '#F97316';
     
     const dimensionsText = `${piece.width}x${piece.height}`;
-    const fontSize = calculateFontSize(piece.width, piece.height, piece.name, dimensionsText);
+    const referenceText = originalPiece.reference ? `[${originalPiece.reference}]` : '';
+    const nameText = `${piece.name}${referenceText ? ' ' + referenceText : ''}`;
+    const fontSize = calculateFontSize(piece.width, piece.height, nameText, dimensionsText);
 
     return (
         <Group
@@ -251,7 +254,7 @@ const PieceComponent = React.memo(({ piece, originalPiece, allPieces, board, onP
             )}
 
             <Text
-                text={`${piece.name}\n${dimensionsText}`}
+                text={`${nameText}\n${dimensionsText}`}
                 fontSize={fontSize}
                 fontStyle="bold"
                 fill={theme === 'dark' ? '#E2E8F0' : '#1F2937'}
@@ -297,11 +300,25 @@ export const LayoutDisplay: React.FC<{
   const resetZoomAndPosition = useCallback(() => {
       if (containerRef.current && board.width > 0 && containerRef.current.offsetWidth > 0) {
           const containerWidth = containerRef.current.offsetWidth;
-          const newScale = containerWidth / board.width;
-          if (isFinite(newScale) && newScale > 0) {
-            setSize({ width: containerWidth, height: board.height * newScale });
-            setStage({ scale: newScale, x: 0, y: 0 });
-          }
+          // Use a fixed max height relative to window to ensure visibility
+          const maxHeight = Math.min(window.innerHeight * 0.7, containerWidth * 1.5); 
+          
+          // Calculate scale ratios for both dimensions
+          const scaleX = containerWidth / board.width;
+          const scaleY = maxHeight / board.height;
+
+          // Use the smaller scale to ensure the WHOLE board fits
+          const newScale = Math.min(scaleX, scaleY) * 0.95; // 0.95 for small padding
+          
+          const displayedWidth = board.width * newScale;
+          const displayedHeight = board.height * newScale;
+
+          // Center the stage
+          const x = (containerWidth - displayedWidth) / 2;
+          const y = (maxHeight - displayedHeight) / 2;
+
+          setSize({ width: containerWidth, height: maxHeight });
+          setStage({ scale: newScale, x: x > 0 ? x : 0, y: y > 0 ? y : 0 });
       }
   }, [board.width, board.height]);
 
@@ -428,7 +445,7 @@ export const LayoutDisplay: React.FC<{
       </div>
       
       {viewMode === 'canvas' && (
-          <div ref={containerRef} className="relative w-full bg-base-200 dark:bg-dark-base-100 rounded-md overflow-hidden">
+          <div ref={containerRef} className="relative w-full bg-base-200 dark:bg-dark-base-100 rounded-md overflow-hidden border border-base-300 dark:border-dark-base-300">
              {size.width > 0 && size.height > 0 ? (
                 <>
                 <div className="absolute top-2 right-2 z-10 flex items-center gap-1 p-1 bg-white/50 dark:bg-black/50 backdrop-blur-sm rounded-lg shadow-md">
@@ -460,6 +477,9 @@ export const LayoutDisplay: React.FC<{
                             width={board.width} 
                             height={board.height} 
                             fill={theme === 'dark' ? '#1E293B' : '#F3F4F6'}
+                            shadowColor="black"
+                            shadowBlur={10}
+                            shadowOpacity={0.1}
                             onClick={() => {
                                 setSelectedGrainGroup(null);
                                 setSelectedPieceId(null);
@@ -512,7 +532,7 @@ export const LayoutDisplay: React.FC<{
                 </Stage>
                 </>
              ) : (
-                <div style={{ width: '100%', paddingBottom: `${(board.height / board.width) * 100}%` }} />
+                <div style={{ width: '100%', height: '500px' }} />
              )}
           </div>
       )}
@@ -523,6 +543,7 @@ export const LayoutDisplay: React.FC<{
                 <thead className="bg-base-200 dark:bg-dark-base-300 sticky top-0 z-10">
                     <tr>
                         <th className="p-3 font-semibold">Nombre</th>
+                        <th className="p-3 font-semibold">Referencia</th>
                         <th className="p-3 font-semibold">Largo Colocado (mm)</th>
                         <th className="p-3 font-semibold">Ancho Colocado (mm)</th>
                         <th className="p-3 font-semibold">Canteado</th>
@@ -543,6 +564,7 @@ export const LayoutDisplay: React.FC<{
                         return(
                         <tr key={p.id} className="border-b dark:border-dark-base-300 last:border-b-0 hover:bg-base-100 dark:hover:bg-dark-base-100">
                             <td className="p-3 font-medium">{p.name}</td>
+                            <td className="p-3 text-content-200 dark:text-dark-content-200">{originalPiece?.reference || '-'}</td>
                             <td className="p-3">{p.width}</td>
                             <td className="p-3">{p.height}</td>
                             <td className="p-3">{edges.join(', ')}</td>
