@@ -323,18 +323,22 @@ export const LayoutDisplay: React.FC<{
   }, [board.width, board.height]);
 
   useEffect(() => {
-      if (isActive) {
-          // Use a small timeout to allow the browser to render the container with its new display style
-          const timer = setTimeout(() => {
-              resetZoomAndPosition();
-          }, 0);
-          
-          window.addEventListener('resize', resetZoomAndPosition);
-          return () => {
-              clearTimeout(timer);
-              window.removeEventListener('resize', resetZoomAndPosition);
-          };
-      }
+      // Small timeout to allow DOM layout to settle when tab switches
+      const timer = setTimeout(() => {
+        if (isActive) {
+            resetZoomAndPosition();
+        }
+      }, 50);
+      
+      const handleResize = () => {
+         if (isActive) resetZoomAndPosition();
+      };
+
+      window.addEventListener('resize', handleResize);
+      return () => {
+          clearTimeout(timer);
+          window.removeEventListener('resize', handleResize);
+      };
   }, [isActive, resetZoomAndPosition]);
 
 
@@ -532,7 +536,9 @@ export const LayoutDisplay: React.FC<{
                 </Stage>
                 </>
              ) : (
-                <div style={{ width: '100%', height: '500px' }} />
+                <div style={{ width: '100%', height: '500px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} className="text-gray-400">
+                    Cargando vista gráfica...
+                </div>
              )}
           </div>
       )}

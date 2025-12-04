@@ -7,7 +7,7 @@ import html2canvas from 'html2canvas';
 import { getOptimalLayout } from './services/geminiService';
 import { analyzePieces } from './services/validationService';
 import type { Piece, Board, OptimizationResult, Layout } from './types';
-import { PlusIcon, TrashIcon, GrainIcon, WandIcon, DownloadIcon, RefreshIcon, CubeIcon, AlertTriangleIcon, FilePlusIcon, SaveIcon, PrinterIcon, TableIcon, SunIcon, MoonIcon, CheckIcon, PencilIcon, SawBladeIcon, RulerIcon, ClockIcon, SparklesIcon, XIcon, UploadIcon, CalculatorIcon, FolderOpenIcon, TagIcon, FileDownloadIcon, FileUploadIcon } from './components/icons';
+import { PlusIcon, TrashIcon, GrainIcon, WandIcon, DownloadIcon, RefreshIcon, CubeIcon, AlertTriangleIcon, FilePlusIcon, SaveIcon, PrinterIcon, TableIcon, SunIcon, MoonIcon, CheckIcon, PencilIcon, SawBladeIcon, RulerIcon, ClockIcon, SparklesIcon, XIcon, UploadIcon, CalculatorIcon, FolderOpenIcon, TagIcon, FileDownloadIcon, FileUploadIcon, RouterIcon } from './components/icons';
 import { LayoutDisplay } from './components/LayoutDisplay';
 
 const initialPieces: Piece[] = [
@@ -67,6 +67,104 @@ interface SavedProject {
         projectName?: string;
     }
 }
+
+// Loading Component with Visual Effects
+const LoadingView: React.FC<{ machine: Machine }> = ({ machine }) => {
+    const [messageIndex, setMessageIndex] = useState(0);
+    
+    const messages = machine === 'cnc' ? [
+        "Importando vectores de piezas...",
+        "Calculando rutas de fresado (Nesting)...",
+        "Optimizando trayectoria de herramienta...",
+        "Verificando colisiones y espacios...",
+        "Generando G-Code simulado..."
+    ] : [
+        "Analizando geometría de piezas...",
+        "Calculando anidamiento óptimo...",
+        "Verificando restricciones de veta...",
+        "Optimizando cortes de guillotina...",
+        "Minimizando desperdicio de material...",
+        "Generando diagramas de corte..."
+    ];
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setMessageIndex((prev) => (prev + 1) % messages.length);
+        }, 2000);
+        return () => clearInterval(interval);
+    }, [messages.length]);
+
+    return (
+        <div className="flex flex-col items-center justify-center min-h-[50vh] text-center w-full">
+            <div className="relative mb-8">
+                {/* Board Representation */}
+                <div className="w-64 h-40 bg-base-300 dark:bg-dark-base-300 rounded-lg overflow-hidden border-2 border-base-300 dark:border-dark-base-300 relative shadow-inner">
+                    {/* Background Grid for CNC */}
+                    {machine === 'cnc' && (
+                        <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle, #888 1px, transparent 1px)', backgroundSize: '20px 20px', opacity: 0.2 }}></div>
+                    )}
+
+                    {/* Ghost Pieces appearing */}
+                    <div className="absolute top-2 left-2 w-16 h-24 bg-brand-primary/20 rounded animate-pulse"></div>
+                    <div className="absolute bottom-2 right-2 w-24 h-12 bg-brand-secondary/20 rounded animate-pulse delay-100"></div>
+                    
+                    {/* Machine Specific Animation */}
+                    {machine === 'seccionadora' ? (
+                        // Saw Line
+                         <div className="absolute top-0 bottom-0 w-0.5 bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.8)] animate-[scan_2s_ease-in-out_infinite]" 
+                         style={{ animation: 'scan 3s ease-in-out infinite' }}></div>
+                    ) : (
+                        // CNC Router Head
+                        <div className="absolute w-4 h-4 border-2 border-brand-primary rounded-full bg-white dark:bg-dark-base-100 shadow-[0_0_10px_rgba(59,130,246,0.8)] animate-[cncMove_4s_linear_infinite]"
+                             style={{ top: '50%', left: '50%', animation: 'cncMove 4s ease-in-out infinite' }}>
+                             <div className="w-1 h-1 bg-brand-primary rounded-full absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"></div>
+                        </div>
+                    )}
+                </div>
+                
+                {/* Icon Overlay */}
+                <div className="absolute -bottom-6 -right-6 bg-base-100 dark:bg-dark-base-200 p-2 rounded-full shadow-lg border border-base-200 dark:border-dark-base-300">
+                     {machine === 'cnc' ? 
+                        <RouterIcon className="w-10 h-10 text-brand-primary animate-pulse" /> : 
+                        <SawBladeIcon className="w-10 h-10 text-brand-primary animate-spin" />
+                     }
+                </div>
+            </div>
+
+            <h3 className="text-xl font-bold text-content-100 dark:text-dark-content-100 animate-pulse">
+                {machine === 'cnc' ? 'Generando Nesting CNC' : 'Optimizando Corte'}
+            </h3>
+            
+            <div className="h-6 mt-2 overflow-hidden relative w-full max-w-xs">
+                <p key={messageIndex} className="text-content-200 dark:text-dark-content-200 text-sm animate-fade-in-up absolute w-full transition-all duration-500">
+                    {messages[messageIndex]}
+                </p>
+            </div>
+             <style>{`
+                @keyframes scan {
+                    0% { left: 0%; opacity: 0; }
+                    10% { opacity: 1; }
+                    90% { opacity: 1; }
+                    100% { left: 100%; opacity: 0; }
+                }
+                @keyframes cncMove {
+                    0% { top: 10%; left: 10%; }
+                    25% { top: 10%; left: 80%; }
+                    50% { top: 80%; left: 80%; }
+                    75% { top: 80%; left: 10%; }
+                    100% { top: 10%; left: 10%; }
+                }
+                .animate-fade-in-up {
+                    animation: fadeInUp 0.5s ease-out forwards;
+                }
+                @keyframes fadeInUp {
+                    from { opacity: 0; transform: translateY(10px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+            `}</style>
+        </div>
+    );
+};
 
 const PricingModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
     if (!isOpen) return null;
@@ -267,7 +365,7 @@ const SaveProjectModal: React.FC<{
 
 const App: React.FC = () => {
   const [board, setBoard] = useState<Board>(initialBoard);
-  const [kerf, setKerf] = useState<number>(3);
+  const [kerf, setKerf] = useState<number>(4);
   const [machine, setMachine] = useState<Machine>('seccionadora');
   const [forceGuillotineCuts, setForceGuillotineCuts] = useState(true);
   const [cncSpeed, setCncSpeed] = useState<number>(5000);
@@ -596,7 +694,7 @@ const App: React.FC = () => {
 
     try {
         const doc = new jsPDF({
-            orientation: 'portrait',
+            orientation: 'landscape',
             unit: 'mm',
             format: 'a4'
         });
@@ -606,23 +704,41 @@ const App: React.FC = () => {
         const margin = 15;
         const writableWidth = pageWidth - (margin * 2);
 
-        // Header Information
-        doc.setFontSize(18);
-        doc.setTextColor(40);
-        doc.text('Reporte de Optimización de Corte', pageWidth / 2, margin + 5, { align: 'center' });
-        
-        doc.setFontSize(10);
-        doc.setTextColor(100);
-        doc.text(`Generado: ${new Date().toLocaleString()}`, pageWidth / 2, margin + 12, { align: 'center' });
+        // Helper for consistent header
+        const addHeader = (pdfDoc: jsPDF) => {
+            pdfDoc.setFontSize(16);
+            pdfDoc.setTextColor(30, 64, 175); // Brand Blue
+            pdfDoc.setFont("helvetica", "bold");
+            pdfDoc.text("DeskSpace Optimizer", margin, 10);
+            
+            pdfDoc.setFontSize(8);
+            pdfDoc.setTextColor(128);
+            pdfDoc.setFont("helvetica", "normal");
+            pdfDoc.text(`Generado: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`, pageWidth - margin, 10, { align: 'right' });
 
-        // Project Summary Table
+            pdfDoc.setDrawColor(220);
+            pdfDoc.setLineWidth(0.5);
+            pdfDoc.line(margin, 12, pageWidth - margin, 12);
+        };
+
+        // --- PAGE 1: GLOBAL SUMMARY ---
+        addHeader(doc);
+
+        doc.setFontSize(22);
+        doc.setTextColor(40);
+        doc.text(projectName, pageWidth / 2, margin + 15, { align: 'center' });
+        
+        doc.setFontSize(12);
+        doc.setTextColor(100);
+        doc.text('Resumen de Optimización de Corte', pageWidth / 2, margin + 23, { align: 'center' });
+
+        // Global Stats Table
         const summaryBody = [
-            ['Proyecto', projectName],
             ['Tablero Base', `${board.name} (${board.width} x ${board.height} mm)`],
             ['Máquina / Kerf', `${machine === 'seccionadora' ? 'Seccionadora' : 'CNC'} / ${kerf} mm`],
             ['Total Tableros', editedResult.totalBoards.toString()],
             ['Desperdicio Global', `${editedResult.estimatedWastePercentage.toFixed(2)}%`],
-            ['Corte Lineal', `${(editedResult.totalCorteMetrosLineales / 1000).toFixed(2)} m`],
+            ['Corte Lineal Total', `${(editedResult.totalCorteMetrosLineales / 1000).toFixed(2)} m`],
             ['Canto Total', `${totalEdgeBandingMeters.toFixed(2)} m`],
         ];
         
@@ -631,35 +747,25 @@ const App: React.FC = () => {
         }
 
         autoTable(doc, {
-            startY: margin + 20,
-            head: [['Parámetro', 'Valor']],
+            startY: margin + 30,
+            head: [['Parámetro Global', 'Valor']],
             body: summaryBody,
             theme: 'striped',
-            headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+            headStyles: { fillColor: [44, 62, 80], textColor: 255 },
             styles: { fontSize: 10, cellPadding: 3 },
             margin: { left: margin, right: margin }
         });
 
-        // Pieces List
+        // Global Parts List (What needs to be cut in total)
         const piecesBody = pieces.map(p => {
-             const edges = [];
-             if (p.edgeTop) edges.push('S');
-             if (p.edgeBottom) edges.push('I');
-             if (p.edgeLeft) edges.push('Iz');
-             if (p.edgeRight) edges.push('De');
-             return [
-                 p.name, 
-                 p.reference || '-', 
-                 `${p.width} x ${p.height}`, 
-                 p.quantity, 
-                 p.hasGrain ? 'Sí' : 'No', 
-                 edges.join(' ')
-            ];
+             return [p.name, p.reference || '-', `${p.width} x ${p.height}`, p.quantity.toString(), p.hasGrain ? 'Sí' : 'No'];
         });
 
+        doc.text('Lista de Pedido (Piezas Requeridas)', margin, (doc as any).lastAutoTable.finalY + 10);
+
         autoTable(doc, {
-            startY: (doc as any).lastAutoTable.finalY + 10,
-            head: [['Pieza', 'Ref', 'Dim (mm)', 'Cant', 'Veta', 'Canto']],
+            startY: (doc as any).lastAutoTable.finalY + 12,
+            head: [['Pieza', 'Ref', 'Dimensiones', 'Cant.', 'Veta']],
             body: piecesBody,
             theme: 'grid',
             headStyles: { fillColor: [52, 73, 94], textColor: 255 },
@@ -667,63 +773,127 @@ const App: React.FC = () => {
             margin: { left: margin, right: margin }
         });
 
-        // Layout Images
-        let currentY = (doc as any).lastAutoTable.finalY + 15;
+        // --- PER BOARD PAGES ---
         const currentActiveTab = activeLayoutTab;
 
         for (let i = 0; i < editedResult.layouts.length; i++) {
-            if (currentY + 60 > pageHeight) { 
-                doc.addPage();
-                currentY = margin;
-            } else if (i > 0) {
-                 doc.addPage();
-                 currentY = margin;
-            } else {
-                 if (currentY > pageHeight - 50) {
-                     doc.addPage();
-                     currentY = margin;
-                 }
-            }
+            doc.addPage(); // New page for each board
+            addHeader(doc);
+            
+            let currentY = margin + 5; // Start a bit lower due to header
 
-            // Switch Tab to render
+            // Activate tab to render canvas
             setActiveLayoutTab(i);
-            await new Promise(resolve => setTimeout(resolve, 250));
+            // Increase delay to 500ms to ensure rendering
+            await new Promise(resolve => setTimeout(resolve, 500));
 
             const layoutElement = document.getElementById(`layout-display-${i}`);
+            
+            // Header for Board
+            doc.setFontSize(16);
+            doc.setTextColor(0);
+            doc.setFont("helvetica", "bold");
+            const headerText = `Tablero ${i + 1} de ${editedResult.totalBoards}`;
+            doc.text(headerText, margin, currentY + 5);
+            
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "normal");
+            doc.text(`Desperdicio: ${editedResult.layouts[i].boardWastePercentage.toFixed(2)}%  |  Cortes: ${editedResult.layouts[i].numberOfCutsForLayout || 0}`, margin, currentY + 12);
+
+            currentY += 15;
+
+            // Render Image
             if (layoutElement) {
                  const canvas = await html2canvas(layoutElement, {
                     scale: 2,
                     backgroundColor: '#ffffff',
-                    logging: false
+                    logging: false,
+                    useCORS: true
                 });
                 
                 const imgData = canvas.toDataURL('image/png');
                 const imgProps = doc.getImageProperties(imgData);
-                const pdfImgWidth = writableWidth;
-                const pdfImgHeight = (imgProps.height * pdfImgWidth) / imgProps.width;
-
-                doc.setFontSize(12);
-                doc.setTextColor(0);
-                doc.setFont("helvetica", "bold");
-                doc.text(`Tablero ${i + 1} - Desperdicio: ${editedResult.layouts[i].boardWastePercentage.toFixed(2)}%`, margin, currentY + 5);
                 
-                doc.addImage(imgData, 'PNG', margin, currentY + 10, pdfImgWidth, pdfImgHeight);
+                // Max height for image (leave space for table below)
+                const maxImgHeight = pageHeight * 0.55; 
+                const availableWidth = writableWidth;
+                
+                let pdfImgWidth = availableWidth;
+                let pdfImgHeight = (imgProps.height * pdfImgWidth) / imgProps.width;
+
+                if (pdfImgHeight > maxImgHeight) {
+                    pdfImgHeight = maxImgHeight;
+                    pdfImgWidth = (imgProps.width * pdfImgHeight) / imgProps.height;
+                }
+
+                const centerX = (pageWidth - pdfImgWidth) / 2;
+                doc.addImage(imgData, 'PNG', centerX, currentY, pdfImgWidth, pdfImgHeight);
+                currentY += pdfImgHeight + 10;
             }
+
+            // Cut List Table for this specific board
+            const layout = editedResult.layouts[i];
+            const cutListBody = layout.placedPieces.map(p => {
+                const original = pieces.find(op => op.id === p.originalPieceId);
+                const edges = [];
+                if (original?.edgeTop) edges.push('S');
+                if (original?.edgeBottom) edges.push('I');
+                if (original?.edgeLeft) edges.push('Izq');
+                if (original?.edgeRight) edges.push('Der');
+                
+                return [
+                    p.name,
+                    original?.reference || '-',
+                    `${p.width} x ${p.height}`,
+                    `${p.x}, ${p.y}`,
+                    p.rotated ? 'Sí' : 'No',
+                    edges.join(', ') || '-'
+                ];
+            });
+
+            doc.setFontSize(11);
+            doc.setFont("helvetica", "bold");
+            doc.text('Lista de Corte - Este Tablero', margin, currentY);
+
+            autoTable(doc, {
+                startY: currentY + 3,
+                head: [['Pieza', 'Ref', 'Dim (mm)', 'Pos (X,Y)', 'Rot', 'Canto']],
+                body: cutListBody,
+                theme: 'grid',
+                headStyles: { fillColor: [44, 62, 80], textColor: 255 },
+                styles: { fontSize: 9, cellPadding: 2 },
+                margin: { left: margin, right: margin }
+            });
         }
 
+        // Restore active tab
         setActiveLayoutTab(currentActiveTab);
 
         if (action === 'download') {
-            doc.save(`${projectName.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'proyecto'}_corte.pdf`);
+            doc.save(`${projectName.replace(/\s+/g, '_')}_Report.pdf`);
         } else {
-            doc.autoPrint();
-            const blobUrl = doc.output('bloburl');
-            window.open(blobUrl, '_blank');
+             // Print using iframe approach to bypass pop-up blockers
+             const pdfBlob = doc.output('blob');
+             const blobUrl = URL.createObjectURL(pdfBlob);
+             
+             const iframe = document.createElement('iframe');
+             iframe.style.display = 'none';
+             iframe.src = blobUrl;
+             document.body.appendChild(iframe);
+             
+             iframe.onload = () => {
+                 setTimeout(() => {
+                     iframe.contentWindow?.focus();
+                     iframe.contentWindow?.print();
+                     // Clean up blob URL after print dialog is likely open/closed
+                     // Note: We can't know exactly when print is done, but blob stays valid.
+                 }, 500);
+             };
         }
 
-    } catch (err) {
-        console.error("Error generating report:", err);
-        alert("Hubo un error generando el reporte. Por favor intenta de nuevo.");
+    } catch (e) {
+        console.error("Error generating report:", e);
+        setError("Error al generar el reporte PDF. Por favor intenta de nuevo.");
     } finally {
         setIsExporting(false);
     }
@@ -731,91 +901,109 @@ const App: React.FC = () => {
 
   const handleGenerateLabels = () => {
     if (!editedResult) return;
-    
-    const doc = new jsPDF({
-        orientation: 'landscape',
-        unit: 'mm',
-        format: 'a4'
-    });
+    setIsExporting(true);
 
-    const labelsPerPage = 24; // 3x8 grid approx
-    const cols = 4;
-    const rows = 6;
-    const marginX = 10;
-    const marginY = 10;
-    const labelWidth = (297 - marginX * 2) / cols; // A4 Landscape Width
-    const labelHeight = (210 - marginY * 2) / rows; // A4 Landscape Height
-
-    let currentLabel = 0;
-    let page = 1;
-    doc.setFontSize(10);
-
-    editedResult.layouts.forEach(layout => {
-        layout.placedPieces.forEach(piece => {
-            if (currentLabel >= cols * rows) {
-                doc.addPage();
-                currentLabel = 0;
-                page++;
-            }
-
-            const originalPiece = pieces.find(p => p.id === piece.originalPieceId);
-            const col = currentLabel % cols;
-            const row = Math.floor(currentLabel / cols);
-            const x = marginX + col * labelWidth;
-            const y = marginY + row * labelHeight;
-
-            // Draw Label Border (Optional: remove for pre-cut sticker sheets)
-            doc.setDrawColor(200, 200, 200);
-            doc.rect(x + 2, y + 2, labelWidth - 4, labelHeight - 4);
-
-            // Content
-            doc.setTextColor(0, 0, 0);
-            doc.setFontSize(14);
-            doc.setFont('helvetica', 'bold');
-            doc.text(piece.name.substring(0, 15), x + 5, y + 10);
-            
-            if (originalPiece?.reference) {
-                doc.setFontSize(10);
-                doc.setFont('helvetica', 'normal');
-                doc.text(`Ref: ${originalPiece.reference}`, x + 5, y + 15);
-            }
-
-            doc.setFontSize(11);
-            doc.setFont('helvetica', 'normal');
-            doc.text(`${piece.width} x ${piece.height} mm`, x + 5, y + 21);
-
-            // Edge Indicators
-            const edges = [];
-            if (originalPiece?.edgeTop) edges.push('Sup');
-            if (originalPiece?.edgeBottom) edges.push('Inf');
-            if (originalPiece?.edgeLeft) edges.push('Izq');
-            if (originalPiece?.edgeRight) edges.push('Der');
-
-            if (edges.length > 0) {
-                 doc.setFontSize(8);
-                 doc.setTextColor(50, 50, 50);
-                 doc.text(`Cantos: ${edges.join(', ')}`, x + 5, y + 27);
-            }
-
-            // Board ID and Project Name
-            doc.setFontSize(7);
-            doc.setTextColor(100, 100, 100);
-            const footerText = `${projectName.substring(0, 15)} | T${layout.boardIndex + 1}`;
-            doc.text(footerText, x + 5, y + labelHeight - 6);
-
-            currentLabel++;
+    try {
+        const doc = new jsPDF({
+            orientation: 'landscape',
+            unit: 'mm',
+            format: [50, 30] // Standard small sticker size (50mm x 30mm)
         });
-    });
 
-    doc.save(`${projectName.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'proyecto'}_etiquetas.pdf`);
+        let first = true;
+
+        editedResult.layouts.forEach((layout, boardIdx) => {
+            layout.placedPieces.forEach((piece) => {
+                if (!first) doc.addPage();
+                first = false;
+
+                const original = pieces.find(op => op.id === piece.originalPieceId);
+
+                // --- Sticker Design ---
+                doc.setFontSize(10);
+                doc.setFont("helvetica", "bold");
+                doc.text(piece.name.substring(0, 15), 2, 5); // Crop long names
+
+                doc.setFontSize(8);
+                doc.setFont("helvetica", "normal");
+                if (original?.reference) {
+                    doc.text(`Ref: ${original.reference}`, 2, 9);
+                }
+                
+                doc.setFontSize(12);
+                doc.setFont("helvetica", "bold");
+                doc.text(`${piece.width} x ${piece.height}`, 25, 16, { align: 'center' });
+                
+                // Visual Edge Banding Indicators (Cross shape)
+                const cx = 40; 
+                const cy = 15;
+                const size = 6;
+                
+                doc.setLineWidth(0.5);
+                // Center Box
+                doc.rect(cx - size/2, cy - size/2, size, size);
+                
+                doc.setFontSize(5);
+                if (original?.edgeTop) {
+                    doc.setFillColor(0,0,0);
+                    doc.rect(cx - size/2, cy - size/2 - 2, size, 2, 'F');
+                }
+                if (original?.edgeBottom) {
+                     doc.setFillColor(0,0,0);
+                     doc.rect(cx - size/2, cy + size/2, size, 2, 'F');
+                }
+                if (original?.edgeLeft) {
+                    doc.setFillColor(0,0,0);
+                    doc.rect(cx - size/2 - 2, cy - size/2, 2, size, 'F');
+                }
+                if (original?.edgeRight) {
+                    doc.setFillColor(0,0,0);
+                    doc.rect(cx + size/2, cy - size/2, 2, size, 'F');
+                }
+
+                // Footer info
+                doc.setFontSize(5);
+                doc.text(`${projectName.substring(0, 20)}`, 2, 28);
+                doc.text(`T${boardIdx + 1}`, 45, 28);
+            });
+        });
+
+        doc.save(`${projectName}_Etiquetas.pdf`);
+    } catch (e) {
+        console.error(e);
+        setError("Error generando etiquetas.");
+    } finally {
+        setIsExporting(false);
+    }
   };
 
-  const handleSaveConfirm = (nameToSave: string) => {
-      setProjectName(nameToSave);
+  const handleReset = () => {
+    if (window.confirm("¿Estás seguro de que quieres reiniciar todo el proyecto? Se perderán los cambios no guardados.")) {
+        setPieces(JSON.parse(JSON.stringify(initialPieces)));
+        setBoard(initialBoard);
+        setKerf(4);
+        setMachine('seccionadora');
+        setForceGuillotineCuts(true);
+        setCncSpeed(5000);
+        setResult(null);
+        setEditedResult(null);
+        setProjectName("Proyecto Sin Título");
+        setCosts({ boardPrice: 0, edgePricePerMeter: 0, cncHourlyRate: 0 });
+    }
+  };
 
+  const handleManualUpdate = () => {
+    if (editedResult) {
+        setSaveMessage('Estado guardado correctamente.');
+        setTimeout(() => setSaveMessage(''), 3000);
+    }
+  };
+
+  // Project Library Handlers
+  const handleSaveProjectToLibrary = (name: string) => {
       const newProject: SavedProject = {
-          id: `proj-${Date.now()}`,
-          name: nameToSave,
+          id: Date.now().toString(),
+          name: name,
           createdAt: Date.now(),
           data: {
               board,
@@ -826,48 +1014,42 @@ const App: React.FC = () => {
               cncSpeed,
               costs,
               customBoards,
-              projectName: nameToSave
+              projectName: name
           }
       };
-
-      const updatedProjects = [...savedProjects, newProject];
-      setSavedProjects(updatedProjects);
       
+      const updatedProjects = [...savedProjects, newProject];
       try {
         localStorage.setItem('deskspace_saved_projects', JSON.stringify(updatedProjects));
-        setSaveMessage(`Proyecto "${nameToSave}" guardado.`);
+        setSavedProjects(updatedProjects);
+        setProjectName(name);
+        setIsSaveModalOpen(false);
+        setSaveMessage("Proyecto guardado en biblioteca.");
         setTimeout(() => setSaveMessage(''), 3000);
       } catch (e) {
-        console.error("Storage error", e);
-        alert("No se pudo guardar el proyecto. Es posible que el almacenamiento del navegador esté lleno.");
+        alert("Error al guardar: El almacenamiento local está lleno. Intenta exportar proyectos antiguos y eliminarlos.");
       }
-      setIsSaveModalOpen(false);
   };
 
   const handleLoadProject = (project: SavedProject) => {
-      if (window.confirm(`¿Cargar "${project.name}"? Se perderán los cambios no guardados del proyecto actual.`)) {
+      if (window.confirm("Cargar este proyecto reemplazará el trabajo actual. ¿Continuar?")) {
           setBoard(project.data.board);
           setPieces(project.data.pieces);
           setKerf(project.data.kerf);
           setMachine(project.data.machine);
           setForceGuillotineCuts(project.data.forceGuillotineCuts);
-          setCncSpeed(project.data.cncSpeed);
-          setCosts(project.data.costs);
-          if(project.data.customBoards) setCustomBoards(project.data.customBoards);
-          if (project.data.projectName) setProjectName(project.data.projectName);
-          else setProjectName(project.name);
-          
-          // Reset results
+          setCncSpeed(project.data.cncSpeed || 5000);
+          setCosts(project.data.costs || { boardPrice: 0, edgePricePerMeter: 0, cncHourlyRate: 0 });
+          setCustomBoards(project.data.customBoards || []);
+          setProjectName(project.data.projectName || project.name);
           setResult(null);
           setEditedResult(null);
           setIsProjectLibraryOpen(false);
-          setSaveMessage(`Proyecto "${project.name}" cargado.`);
-          setTimeout(() => setSaveMessage(''), 3000);
       }
   };
 
   const handleDeleteProject = (id: string) => {
-      if (window.confirm("¿Seguro que quieres eliminar este proyecto permanentemente?")) {
+      if (window.confirm("¿Eliminar este proyecto permanentemente?")) {
           const updated = savedProjects.filter(p => p.id !== id);
           setSavedProjects(updated);
           localStorage.setItem('deskspace_saved_projects', JSON.stringify(updated));
@@ -875,497 +1057,472 @@ const App: React.FC = () => {
   };
 
   const handleExportProject = (project: SavedProject) => {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(project));
-    const downloadAnchorNode = document.createElement('a');
-    downloadAnchorNode.setAttribute("href", dataStr);
-    downloadAnchorNode.setAttribute("download", `${project.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.json`);
-    document.body.appendChild(downloadAnchorNode);
-    downloadAnchorNode.click();
-    downloadAnchorNode.remove();
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(project));
+      const downloadAnchorNode = document.createElement('a');
+      downloadAnchorNode.setAttribute("href", dataStr);
+      downloadAnchorNode.setAttribute("download", `${project.name.replace(/\s+/g, '_')}.json`);
+      document.body.appendChild(downloadAnchorNode);
+      downloadAnchorNode.click();
+      downloadAnchorNode.remove();
   };
 
   const handleImportProject = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const input = e.target;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-        try {
-            const content = event.target?.result as string;
-            const project = JSON.parse(content) as SavedProject;
-            
-            // Basic validation
-            if (!project.id || !project.data || !project.data.pieces) {
-                throw new Error("Formato de archivo inválido");
-            }
-            
-            // Assign new ID to avoid conflicts if re-importing
-            project.id = `proj-${Date.now()}`;
-            project.name = `${project.name} (Importado)`;
-            project.createdAt = Date.now();
-
-            const updatedProjects = [...savedProjects, project];
-            setSavedProjects(updatedProjects);
-            localStorage.setItem('deskspace_saved_projects', JSON.stringify(updatedProjects));
-            
-            setSaveMessage(`Proyecto "${project.name}" importado.`);
-            setTimeout(() => setSaveMessage(''), 3000);
-
-        } catch (err) {
-            console.error("Error importing project", err);
-            alert("Error al importar el archivo. Asegúrate de que es un archivo JSON válido de Deskspace.");
-        } finally {
-            // Reset input
-            e.target.value = '';
-        }
-    };
-    reader.readAsText(file);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+          try {
+              const importedProject = JSON.parse(event.target?.result as string);
+              if (importedProject && importedProject.data) {
+                  // Ensure ID is unique upon import
+                  importedProject.id = Date.now().toString();
+                  const updated = [...savedProjects, importedProject];
+                  setSavedProjects(updated);
+                  localStorage.setItem('deskspace_saved_projects', JSON.stringify(updated));
+                  alert("Proyecto importado correctamente.");
+              } else {
+                  alert("Formato de archivo inválido.");
+              }
+          } catch (err) {
+              console.error(err);
+              alert("Error al leer el archivo.");
+          } finally {
+               input.value = ''; // Reset input
+          }
+      };
+      reader.readAsText(file);
   };
-  
-  const handleManualSave = () => {
-      const projectData = { board, pieces, kerf, machine, forceGuillotineCuts, cncSpeed, costs, projectName };
-      localStorage.setItem('deskspace_project', JSON.stringify(projectData));
-      setSaveMessage('¡Estado actual guardado!');
-      // Scroll to top of sidebar on mobile to show message
-      const controlColumn = document.getElementById('control-column');
-      if (controlColumn) controlColumn.scrollTop = 0;
-      setTimeout(() => setSaveMessage(''), 3000);
-  }
-
-  const handleResetProject = () => {
-      if (window.confirm("¿Estás seguro de que quieres reiniciar el proyecto? Se borrarán todos los datos actuales.")) {
-          localStorage.removeItem('deskspace_project');
-          // Use deep copy to ensure state updates trigger re-render even if values look similar
-          setBoard({...initialBoard});
-          // Deep copy pieces array
-          setPieces(initialPieces.map(p => ({...p}))); 
-          setKerf(3);
-          setMachine('seccionadora');
-          setForceGuillotineCuts(true);
-          setCncSpeed(5000);
-          setResult(null);
-          setEditedResult(null);
-          setNewPiece({...newPieceInitialState});
-          setEditingPieceId(null);
-          setWarnings([]);
-          setCosts({ boardPrice: 0, edgePricePerMeter: 0, cncHourlyRate: 0 });
-          setProjectName("Proyecto Sin Título");
-          setSaveMessage("Proyecto reiniciado");
-          setTimeout(() => setSaveMessage(''), 3000);
-      }
-  };
-
-  const handleBoardSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const selectedValue = e.target.value;
-    if (selectedValue === 'add_custom') {
-        setIsAddingCustom(true);
-    } else {
-        setIsAddingCustom(false);
-        const allBoards = [...standardBoards, ...customBoards];
-        const selected = allBoards.find(b => `${b.name}-${b.width}x${b.height}` === selectedValue);
-        if(selected) setBoard(selected);
-    }
-  };
-
-  const handleAddCustomBoard = () => {
-    const { name, width, height } = customBoardData;
-    const numWidth = parseInt(width, 10);
-    const numHeight = parseInt(height, 10);
-    if(name && numWidth > 0 && numHeight > 0) {
-        const newBoard = { name, width: numWidth, height: numHeight };
-        const updatedCustomBoards = [...customBoards, newBoard];
-        setCustomBoards(updatedCustomBoards);
-        localStorage.setItem('deskspace_custom_boards', JSON.stringify(updatedCustomBoards));
-        setBoard(newBoard);
-        setCustomBoardData({ name: '', width: '', height: '' });
-        setIsAddingCustom(false);
-    }
-  };
-
 
   return (
-    <div className="flex flex-col min-h-screen md:h-screen font-sans">
+    <div className={`min-h-screen font-sans transition-colors duration-200 ${theme === 'dark' ? 'bg-dark-base-100 text-dark-content-100' : 'bg-base-200 text-content-100'}`}>
+      {/* Header */}
+      <header className="bg-white dark:bg-dark-base-200 shadow-sm border-b border-base-300 dark:border-dark-base-300 print:hidden sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="bg-brand-primary text-white p-1.5 rounded-lg">
+                <CubeIcon className="w-6 h-6" />
+            </div>
+            <h1 className="text-xl font-bold tracking-tight hidden sm:block">
+              <span className="text-brand-primary">DeskSpace</span> Optimizer
+            </h1>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <button onClick={() => setIsProjectLibraryOpen(true)} className="p-2 text-content-200 dark:text-dark-content-200 hover:bg-base-200 dark:hover:bg-dark-base-300 rounded-full transition-colors relative group">
+                <FolderOpenIcon />
+                <span className="absolute top-full mt-1 right-0 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">Mis Proyectos</span>
+            </button>
+            <button onClick={() => setIsPricingModalOpen(true)} className="hidden sm:flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-full text-sm font-bold shadow-sm hover:shadow-md transition-all">
+                <SparklesIcon className="w-4 h-4" />
+                <span>PRO</span>
+            </button>
+            <div className="h-6 w-px bg-base-300 dark:bg-dark-base-300 mx-1"></div>
+            <button 
+              onClick={toggleTheme} 
+              className="p-2 text-content-200 dark:text-dark-content-200 hover:bg-base-200 dark:hover:bg-dark-base-300 rounded-full transition-colors"
+              aria-label="Toggle theme"
+            >
+              {theme === 'light' ? <MoonIcon /> : <SunIcon />}
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 h-[calc(100vh-64px)] overflow-hidden flex flex-col sm:flex-row gap-6">
+        
+        {/* Left Control Column - Scrollable */}
+        <div id="control-column" className="w-full sm:w-1/3 lg:w-1/4 flex flex-col gap-6 overflow-y-auto pr-2 pb-20 sm:pb-0 h-full scrollbar-hide">
+            
+            {/* Project Title Input */}
+            <div className="bg-white dark:bg-dark-base-200 p-4 rounded-lg shadow-sm border border-base-300 dark:border-dark-base-300">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-content-200 dark:text-dark-content-200 mb-2">Proyecto</label>
+                <div className="flex items-center gap-2">
+                    <input 
+                        type="text" 
+                        value={projectName} 
+                        onChange={(e) => setProjectName(e.target.value)} 
+                        className="w-full bg-base-200 dark:bg-dark-base-300 border-none rounded px-3 py-2 font-medium focus:ring-2 focus:ring-brand-primary"
+                        placeholder="Nombre del proyecto..."
+                    />
+                    <button onClick={() => setIsSaveModalOpen(true)} className="p-2 text-brand-primary hover:bg-base-200 dark:hover:bg-dark-base-300 rounded" title="Guardar como...">
+                        <SaveIcon />
+                    </button>
+                </div>
+            </div>
+
+            {/* Board Configuration */}
+            <div className="bg-white dark:bg-dark-base-200 p-4 rounded-lg shadow-sm border border-base-300 dark:border-dark-base-300">
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="font-bold flex items-center gap-2">
+                        <RulerIcon className="text-brand-primary"/> Material
+                    </h2>
+                </div>
+                
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium mb-1">Tablero Base</label>
+                        <select 
+                            className="w-full p-2 bg-base-200 dark:bg-dark-base-300 rounded border border-base-300 dark:border-dark-base-300 text-sm"
+                            value={board.name}
+                            onChange={(e) => {
+                                const selected = [...standardBoards, ...customBoards].find(b => b.name === e.target.value);
+                                if (selected) setBoard(selected);
+                            }}
+                        >
+                            <optgroup label="Estándar">
+                                {standardBoards.map(b => <option key={b.name} value={b.name}>{b.name}</option>)}
+                            </optgroup>
+                            {customBoards.length > 0 && (
+                                <optgroup label="Personalizados">
+                                    {customBoards.map(b => <option key={b.name} value={b.name}>{b.name}</option>)}
+                                </optgroup>
+                            )}
+                        </select>
+                         {!isAddingCustom ? (
+                            <button onClick={() => setIsAddingCustom(true)} className="text-xs text-brand-primary mt-1 hover:underline">+ Crear medida personalizada</button>
+                        ) : (
+                            <div className="mt-2 p-2 bg-base-200 dark:bg-dark-base-300 rounded animate-fade-in-up">
+                                <input placeholder="Nombre (ej. Retal Taller)" className="w-full text-xs p-1 mb-1 rounded" value={customBoardData.name} onChange={e => setCustomBoardData({...customBoardData, name: e.target.value})} />
+                                <div className="flex gap-1 mb-1">
+                                    <input type="number" placeholder="Largo" className="w-1/2 text-xs p-1 rounded" value={customBoardData.width} onChange={e => setCustomBoardData({...customBoardData, width: e.target.value})} />
+                                    <input type="number" placeholder="Ancho" className="w-1/2 text-xs p-1 rounded" value={customBoardData.height} onChange={e => setCustomBoardData({...customBoardData, height: e.target.value})} />
+                                </div>
+                                <div className="flex gap-2 justify-end">
+                                    <button onClick={() => setIsAddingCustom(false)} className="text-xs opacity-70">Cancelar</button>
+                                    <button onClick={() => {
+                                        if(customBoardData.name && customBoardData.width && customBoardData.height) {
+                                            const newB = { name: `${customBoardData.name} (${customBoardData.width}x${customBoardData.height})`, width: Number(customBoardData.width), height: Number(customBoardData.height) };
+                                            setCustomBoards([...customBoards, newB]);
+                                            setBoard(newB);
+                                            setIsAddingCustom(false);
+                                            // Save to local storage specifically
+                                            localStorage.setItem('deskspace_custom_boards', JSON.stringify([...customBoards, newB]));
+                                        }
+                                    }} className="text-xs bg-brand-primary text-white px-2 py-1 rounded">Guardar</button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                         <div>
+                            <label className="block text-sm font-medium mb-1">Kerf (mm)</label>
+                            <input 
+                                type="number" 
+                                value={kerf} 
+                                onChange={(e) => setKerf(Number(e.target.value))}
+                                className="w-full p-2 bg-base-200 dark:bg-dark-base-300 rounded border border-base-300 dark:border-dark-base-300 text-sm"
+                            />
+                        </div>
+                         <div>
+                            <label className="block text-sm font-medium mb-1">Máquina</label>
+                            <select 
+                                value={machine} 
+                                onChange={(e) => setMachine(e.target.value as Machine)}
+                                className="w-full p-2 bg-base-200 dark:bg-dark-base-300 rounded border border-base-300 dark:border-dark-base-300 text-sm"
+                            >
+                                <option value="seccionadora">Seccionadora</option>
+                                <option value="cnc">CNC / Router</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    {machine === 'cnc' && (
+                         <div>
+                            <label className="block text-sm font-medium mb-1">Velocidad (mm/min)</label>
+                            <input 
+                                type="number" 
+                                value={cncSpeed} 
+                                onChange={(e) => setCncSpeed(Number(e.target.value))}
+                                className="w-full p-2 bg-base-200 dark:bg-dark-base-300 rounded border border-base-300 dark:border-dark-base-300 text-sm"
+                            />
+                        </div>
+                    )}
+
+                    <div className="flex items-center gap-2">
+                        <input 
+                            type="checkbox" 
+                            id="guillotine"
+                            checked={forceGuillotineCuts}
+                            onChange={(e) => setForceGuillotineCuts(e.target.checked)}
+                            className="rounded text-brand-primary focus:ring-brand-primary"
+                        />
+                        <label htmlFor="guillotine" className="text-sm">Forzar cortes de guillotina (rectos)</label>
+                    </div>
+                </div>
+            </div>
+
+             {/* Financials */}
+             <div className="bg-white dark:bg-dark-base-200 p-4 rounded-lg shadow-sm border border-base-300 dark:border-dark-base-300">
+                <h2 className="font-bold flex items-center gap-2 mb-3">
+                    <CalculatorIcon className="text-brand-secondary"/> Costos y Presupuesto
+                </h2>
+                <div className="grid grid-cols-1 gap-3 text-sm">
+                    <div>
+                        <label className="block text-xs text-content-200 dark:text-dark-content-200 mb-1">Precio por Tablero</label>
+                        <div className="relative">
+                            <span className="absolute left-2 top-1.5 opacity-50">$</span>
+                            <input type="number" className="w-full pl-6 p-1.5 bg-base-200 dark:bg-dark-base-300 rounded border border-base-300 dark:border-dark-base-300" 
+                                value={costs.boardPrice || ''} onChange={e => setCosts({...costs, boardPrice: parseFloat(e.target.value) || 0})} />
+                        </div>
+                    </div>
+                    <div className="flex gap-2">
+                        <div className="w-1/2">
+                            <label className="block text-xs text-content-200 dark:text-dark-content-200 mb-1">Precio Canto/m</label>
+                            <input type="number" className="w-full p-1.5 bg-base-200 dark:bg-dark-base-300 rounded border border-base-300 dark:border-dark-base-300" 
+                                value={costs.edgePricePerMeter || ''} onChange={e => setCosts({...costs, edgePricePerMeter: parseFloat(e.target.value) || 0})} />
+                        </div>
+                        <div className="w-1/2">
+                            <label className="block text-xs text-content-200 dark:text-dark-content-200 mb-1">Costo Hora MQ</label>
+                            <input type="number" className="w-full p-1.5 bg-base-200 dark:bg-dark-base-300 rounded border border-base-300 dark:border-dark-base-300" 
+                                value={costs.cncHourlyRate || ''} onChange={e => setCosts({...costs, cncHourlyRate: parseFloat(e.target.value) || 0})} />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Pieces Input */}
+            <div className="bg-white dark:bg-dark-base-200 p-4 rounded-lg shadow-sm border border-base-300 dark:border-dark-base-300 flex-grow flex flex-col">
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="font-bold flex items-center gap-2">
+                        <CubeIcon className="text-brand-primary"/> Piezas
+                    </h2>
+                     <button onClick={() => fileInputRef.current?.click()} className="text-xs flex items-center gap-1 text-brand-primary hover:underline">
+                        <UploadIcon className="w-3 h-3"/> Importar CSV
+                    </button>
+                    <input type="file" ref={fileInputRef} onChange={handleCSVUpload} accept=".csv" className="hidden" />
+                </div>
+
+                <div className="bg-base-200 dark:bg-dark-base-300 p-3 rounded-lg mb-4 space-y-3">
+                    <div className="flex gap-2">
+                        <div className="flex-grow">
+                             <label className="block text-xs font-medium mb-1">Nombre</label>
+                             <select name="name" value={newPiece.name} onChange={handleInputChange} className="w-full p-1.5 rounded text-sm bg-white dark:bg-dark-base-100 border border-base-300 dark:border-dark-base-300">
+                                {pieceNameOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                             </select>
+                             {newPiece.name === 'Otro...' && (
+                                 <input type="text" name="customName" placeholder="Nombre personalizado" value={newPiece.customName} onChange={handleInputChange} className="w-full mt-1 p-1.5 rounded text-sm bg-white dark:bg-dark-base-100 border border-base-300 dark:border-dark-base-300" autoFocus />
+                             )}
+                        </div>
+                        <div className="w-1/3">
+                            <label className="block text-xs font-medium mb-1">Ref.</label>
+                            <input type="text" name="reference" value={newPiece.reference} onChange={handleInputChange} className="w-full p-1.5 rounded text-sm bg-white dark:bg-dark-base-100 border border-base-300 dark:border-dark-base-300" placeholder="#A1" />
+                        </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                        <div className="w-1/3">
+                            <label className="block text-xs font-medium mb-1">Largo</label>
+                            <input type="number" name="width" value={newPiece.width} onChange={handleInputChange} className="w-full p-1.5 rounded text-sm bg-white dark:bg-dark-base-100 border border-base-300 dark:border-dark-base-300" placeholder="mm" />
+                        </div>
+                        <div className="w-1/3">
+                            <label className="block text-xs font-medium mb-1">Ancho</label>
+                            <input type="number" name="height" value={newPiece.height} onChange={handleInputChange} className="w-full p-1.5 rounded text-sm bg-white dark:bg-dark-base-100 border border-base-300 dark:border-dark-base-300" placeholder="mm" />
+                        </div>
+                         <div className="w-1/3">
+                            <label className="block text-xs font-medium mb-1">Cant.</label>
+                            <input type="number" name="quantity" value={newPiece.quantity} onChange={handleInputChange} className="w-full p-1.5 rounded text-sm bg-white dark:bg-dark-base-100 border border-base-300 dark:border-dark-base-300" />
+                        </div>
+                    </div>
+
+                    <div>
+                        <div className="flex items-center gap-2 mb-2">
+                            <input type="checkbox" name="hasGrain" id="hasGrain" checked={newPiece.hasGrain} onChange={handleInputChange} className="rounded text-brand-primary" />
+                            <label htmlFor="hasGrain" className="text-sm flex items-center gap-1 cursor-pointer"><GrainIcon className="w-4 h-4"/> Respetar Veta</label>
+                        </div>
+                        {newPiece.hasGrain && (
+                            <input type="text" name="grainContinuityGroup" value={newPiece.grainContinuityGroup} onChange={handleInputChange} placeholder="Grupo Continuidad (opcional)" className="w-full p-1.5 rounded text-sm bg-white dark:bg-dark-base-100 border border-base-300 dark:border-dark-base-300" />
+                        )}
+                    </div>
+
+                    <div>
+                        <label className="block text-xs font-medium mb-1">Canteado</label>
+                        <div className="flex justify-between gap-1">
+                             {['Top', 'Bottom', 'Left', 'Right'].map(side => (
+                                 <label key={side} className={`flex-1 text-center py-1 rounded text-xs cursor-pointer select-none border ${newPiece[`edge${side}` as keyof typeof newPiece] ? 'bg-brand-primary text-white border-brand-primary' : 'bg-white dark:bg-dark-base-100 border-base-300 dark:border-dark-base-300'}`}>
+                                     <input type="checkbox" name={`edge${side}`} checked={newPiece[`edge${side}` as keyof typeof newPiece] as boolean} onChange={handleInputChange} className="hidden" />
+                                     {side === 'Top' ? 'Sup' : side === 'Bottom' ? 'Inf' : side === 'Left' ? 'Izq' : 'Der'}
+                                 </label>
+                             ))}
+                        </div>
+                    </div>
+
+                    <button onClick={handleAddPiece} className="w-full bg-content-100 dark:bg-dark-content-100 text-base-100 dark:text-dark-base-100 py-2 rounded-md hover:opacity-90 transition-opacity flex justify-center items-center gap-2">
+                        {editingPieceId ? <PencilIcon /> : <PlusIcon />} {editingPieceId ? 'Actualizar Pieza' : 'Añadir Pieza'}
+                    </button>
+                </div>
+
+                <div className="flex-grow overflow-y-auto space-y-2">
+                    {pieces.map((piece) => (
+                        <div key={piece.id} className="flex items-center justify-between p-2 bg-base-100 dark:bg-dark-base-300 rounded border border-base-200 dark:border-dark-base-300 group hover:shadow-sm transition-shadow">
+                            <div>
+                                <div className="font-medium text-sm">
+                                    {piece.quantity}x {piece.name} <span className="text-xs text-content-200 dark:text-dark-content-200 font-normal">({piece.width}x{piece.height})</span>
+                                </div>
+                                <div className="text-xs text-content-200 dark:text-dark-content-200 flex items-center gap-2">
+                                     {piece.reference && <span className="bg-brand-secondary/10 text-brand-secondary px-1 rounded">{piece.reference}</span>}
+                                     {piece.hasGrain && <span title="Veta" className="flex items-center"><GrainIcon className="w-3 h-3"/></span>}
+                                     {piece.grainContinuityGroup && <span className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-1 rounded">Grupo: {piece.grainContinuityGroup}</span>}
+                                </div>
+                            </div>
+                            <div className="flex gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onClick={() => handleEditPiece(piece)} className="p-1 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded"><PencilIcon className="w-4 h-4"/></button>
+                                <button onClick={() => handleDeletePiece(piece.id)} className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"><TrashIcon className="w-4 h-4"/></button>
+                            </div>
+                        </div>
+                    ))}
+                    {pieces.length === 0 && <div className="text-center text-sm text-content-200 dark:text-dark-content-200 py-4 italic">No hay piezas añadidas</div>}
+                </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col gap-2">
+                <button 
+                    onClick={handleOptimize} 
+                    disabled={isLoading}
+                    className="w-full bg-brand-primary text-white py-3 rounded-lg shadow-md hover:bg-blue-700 transition-colors flex justify-center items-center gap-2 font-bold text-lg disabled:opacity-70 disabled:cursor-not-allowed"
+                >
+                    <WandIcon /> {isLoading ? 'Optimizando...' : 'Optimizar'}
+                </button>
+                <div className="flex gap-2">
+                     <button onClick={handleManualUpdate} className="flex-1 bg-white dark:bg-dark-base-200 text-content-100 dark:text-dark-content-100 border border-base-300 dark:border-dark-base-300 py-2 rounded-lg hover:bg-base-200 dark:hover:bg-dark-base-300 transition-colors flex justify-center items-center gap-2">
+                        <SaveIcon className="w-5 h-5"/> Guardar Estado
+                    </button>
+                    <button onClick={handleReset} className="flex-1 bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 py-2 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/40 transition-colors flex justify-center items-center gap-2 border border-transparent">
+                        <RefreshIcon /> Reiniciar
+                    </button>
+                </div>
+                {saveMessage && <div className="text-center text-xs text-green-600 dark:text-green-400 font-medium animate-pulse">{saveMessage}</div>}
+            </div>
+
+        </div>
+
+        {/* Right Results Column */}
+        <div id="results-column" className="w-full sm:w-2/3 lg:w-3/4 flex flex-col h-full bg-white dark:bg-dark-base-200 rounded-lg shadow-sm border border-base-300 dark:border-dark-base-300 overflow-hidden relative">
+            
+            {isLoading ? (
+                <LoadingView machine={machine} />
+            ) : editedResult ? (
+                <div className="flex flex-col h-full">
+                    {/* Toolbar */}
+                    <div className="p-4 border-b border-base-300 dark:border-dark-base-300 flex flex-wrap justify-between items-center gap-4 bg-base-100 dark:bg-dark-base-300/50">
+                        <div className="flex flex-col">
+                            <h2 className="text-lg font-bold">Resultados</h2>
+                            <div className="text-sm text-content-200 dark:text-dark-content-200 flex gap-4">
+                                <span>{editedResult.totalBoards} Tablero(s)</span>
+                                <span>{editedResult.estimatedWastePercentage.toFixed(2)}% Desperdicio</span>
+                                {estimatedTotalCost > 0 && <span className="font-semibold text-brand-secondary">Costo: ${estimatedTotalCost.toFixed(2)}</span>}
+                            </div>
+                        </div>
+                        <div className="flex gap-2">
+                             <button onClick={handleGenerateLabels} disabled={isExporting} className="px-3 py-2 bg-purple-600 text-white rounded-md shadow-sm hover:bg-purple-700 transition-colors flex items-center gap-2 disabled:opacity-50 text-sm">
+                                <TagIcon /> Etiquetas
+                            </button>
+                             <div className="h-8 w-px bg-gray-300 dark:bg-gray-600 mx-1 self-center"></div>
+                             <button onClick={() => handleGenerateReport('print')} disabled={isExporting} className="px-3 py-2 bg-content-100 dark:bg-dark-content-100 text-base-100 dark:text-dark-base-100 rounded-md shadow-sm hover:opacity-90 transition-opacity flex items-center gap-2 disabled:opacity-50 text-sm">
+                                <PrinterIcon /> Imprimir
+                            </button>
+                            <button onClick={() => handleGenerateReport('download')} disabled={isExporting} className="px-3 py-2 bg-brand-secondary text-white rounded-md shadow-sm hover:bg-green-600 transition-colors flex items-center gap-2 disabled:opacity-50 text-sm">
+                                <DownloadIcon /> PDF
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Tabs */}
+                    <div className="flex overflow-x-auto border-b border-base-300 dark:border-dark-base-300 bg-base-200 dark:bg-dark-base-300 px-2 scrollbar-hide">
+                         <button 
+                            className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeLayoutTab === 0 && !result ? 'border-brand-primary text-brand-primary' : 'border-transparent text-content-200 hover:text-content-100'}`}
+                            onClick={() => setActiveLayoutTab(0)}
+                         >
+                            Resumen
+                         </button>
+                        {editedResult.layouts.map((_, idx) => (
+                            <button 
+                                key={idx}
+                                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeLayoutTab === idx ? 'border-brand-primary text-brand-primary bg-white dark:bg-dark-base-200 rounded-t' : 'border-transparent text-content-200 hover:text-content-100'}`}
+                                onClick={() => setActiveLayoutTab(idx)}
+                            >
+                                Tablero {idx + 1}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Content Area */}
+                    <div className="flex-grow overflow-y-auto p-4 bg-base-100 dark:bg-dark-base-100">
+                         {activeLayoutTab < editedResult.layouts.length && (
+                             <div id={`layout-display-${activeLayoutTab}`} className="h-full flex flex-col">
+                                 <LayoutDisplay 
+                                    board={board}
+                                    layout={editedResult.layouts[activeLayoutTab]} 
+                                    pieces={pieces}
+                                    onLayoutChange={handleLayoutChange}
+                                    theme={theme}
+                                    kerf={kerf}
+                                    machine={machine}
+                                    isActive={true}
+                                 />
+                             </div>
+                         )}
+                    </div>
+                </div>
+            ) : (
+                <div className="flex flex-col items-center justify-center h-full text-content-200 dark:text-dark-content-200 p-8 text-center opacity-60">
+                    <CubeIcon className="w-16 h-16 mb-4 text-base-300 dark:text-dark-base-300" />
+                    <h3 className="text-xl font-bold mb-2">Listo para Optimizar</h3>
+                    <p className="max-w-md">Añade tus piezas en el panel izquierdo y pulsa "Optimizar" para generar el plan de corte ideal.</p>
+                    {isProjectLoaded && <div className="mt-4 text-green-500 font-medium animate-pulse">Proyecto cargado correctamente</div>}
+                </div>
+            )}
+            
+            {/* Warnings Toast */}
+            {warnings.length > 0 && (
+                <div className="absolute bottom-4 left-4 right-4 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 p-4 rounded-lg shadow-lg animate-fade-in-up z-20">
+                    <div className="flex items-start gap-3">
+                        <AlertTriangleIcon className="text-yellow-600 dark:text-yellow-500 flex-shrink-0 mt-0.5" />
+                        <div>
+                            <h4 className="font-bold text-yellow-800 dark:text-yellow-400 text-sm mb-1">Advertencias de Validación</h4>
+                            <ul className="list-disc list-inside text-xs text-yellow-700 dark:text-yellow-300 space-y-1">
+                                {warnings.slice(0, 3).map((w, i) => <li key={i}>{w}</li>)}
+                                {warnings.length > 3 && <li>...y {warnings.length - 3} más.</li>}
+                            </ul>
+                        </div>
+                        <button onClick={() => setWarnings([])} className="ml-auto text-yellow-500 hover:text-yellow-700"><XIcon className="w-4 h-4" /></button>
+                    </div>
+                </div>
+            )}
+            
+            {/* Error Toast */}
+            {error && (
+                <div className="absolute bottom-4 left-4 right-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 p-4 rounded-lg shadow-lg animate-fade-in-up z-20">
+                    <div className="flex items-center gap-3">
+                        <AlertTriangleIcon className="text-red-600 dark:text-red-500 flex-shrink-0" />
+                        <span className="text-red-800 dark:text-red-300 text-sm font-medium">{error}</span>
+                        <button onClick={() => setError(null)} className="ml-auto text-red-500 hover:text-red-700"><XIcon className="w-4 h-4" /></button>
+                    </div>
+                </div>
+            )}
+        </div>
+      </main>
+
+      <PricingModal isOpen={isPricingModalOpen} onClose={() => setIsPricingModalOpen(false)} />
+      <SaveProjectModal 
+        isOpen={isSaveModalOpen} 
+        onClose={() => setIsSaveModalOpen(false)} 
+        onSave={handleSaveProjectToLibrary}
+        currentName={projectName}
+      />
       <ProjectLibraryModal 
-        isOpen={isProjectLibraryOpen} 
-        onClose={() => setIsProjectLibraryOpen(false)} 
+        isOpen={isProjectLibraryOpen}
+        onClose={() => setIsProjectLibraryOpen(false)}
         projects={savedProjects}
         onLoad={handleLoadProject}
         onDelete={handleDeleteProject}
         onExport={handleExportProject}
         onImport={handleImportProject}
       />
-      <SaveProjectModal 
-        isOpen={isSaveModalOpen} 
-        onClose={() => setIsSaveModalOpen(false)} 
-        onSave={handleSaveConfirm} 
-        currentName={projectName} 
-      />
-      <header className="bg-base-100 dark:bg-dark-base-200 shadow-md p-3 flex justify-between items-center print:hidden flex-shrink-0 z-20 relative">
-        <div className="flex items-center gap-3">
-          <CubeIcon className="w-8 h-8 text-brand-primary" />
-          <h1 className="text-xl font-bold text-content-100 dark:text-dark-content-100 hidden sm:block">OPTIMIZADOR AVANZADO DESKPACE</h1>
-        </div>
-        <div className="flex items-center gap-2">
-            <button onClick={() => setIsProjectLibraryOpen(true)} className="px-3 py-2 rounded-lg hover:bg-base-200 dark:hover:bg-dark-base-300 transition-colors flex items-center gap-2 text-sm font-semibold">
-                <FolderOpenIcon className="w-5 h-5"/>
-                <span className="hidden sm:inline">Mis Proyectos</span>
-            </button>
-            <button onClick={() => setIsPricingModalOpen(true)} className="px-3 py-2 rounded-lg hover:bg-base-200 dark:hover:bg-dark-base-300 transition-colors flex items-center gap-2 text-sm font-semibold text-brand-primary">
-                <SparklesIcon className="w-5 h-5"/>
-                <span className="hidden sm:inline">Mejorar Plan</span>
-            </button>
-            <button onClick={toggleTheme} className="p-2 rounded-full hover:bg-base-300 dark:hover:bg-dark-base-300 transition-colors">
-                {theme === 'light' ? <MoonIcon /> : <SunIcon />}
-            </button>
-        </div>
-      </header>
-      
-      {/* 
-         Mobile Layout: Stacked, Scrollable Document (no fixed height).
-         Desktop Layout: Row, Fixed Height with Independent Scrollbars (h-screen, overflow-hidden).
-      */}
-      <div className="flex-grow flex flex-col md:flex-row md:overflow-hidden h-auto md:h-full">
-        {/* Control Column */}
-        <div id="control-column" className="w-full md:w-1/3 lg:w-1/4 xl:w-1/5 p-4 bg-base-100 dark:bg-dark-base-200 border-r border-base-300 dark:border-dark-base-300 print:hidden h-auto md:overflow-y-auto md:h-full flex-shrink-0">
-          
-          {/* Notifications area */}
-           <div className="mb-4 space-y-2">
-                {isProjectLoaded && (
-                    <div className="p-2 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-xs rounded-md flex items-center gap-2 animate-fade-in">
-                        <CheckIcon className="w-4 h-4"/> Restaurado auto-guardado
-                    </div>
-                )}
-                {saveMessage && (
-                    <div className="p-2 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs rounded-md flex items-center gap-2 justify-center animate-pulse">
-                        <CheckIcon className="w-4 h-4"/> {saveMessage}
-                    </div>
-                )}
-           </div>
-
-          {/* Project Settings */}
-          <section>
-            <h2 className="text-lg font-semibold mb-3">Configuración del Proyecto</h2>
-            
-            <div className="mb-4">
-                <label className="block text-sm font-medium mb-1">Nombre del Proyecto</label>
-                <div className="flex gap-2">
-                    <input 
-                        type="text" 
-                        value={projectName} 
-                        onChange={(e) => setProjectName(e.target.value)} 
-                        className="w-full p-2 bg-base-200 dark:bg-dark-base-300 border border-base-300 dark:border-dark-base-300 rounded-md font-semibold"
-                        placeholder="Ej. Cocina Cliente García"
-                    />
-                </div>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Tablero</label>
-                <select onChange={handleBoardSelectChange} value={isAddingCustom ? 'add_custom' : `${board.name}-${board.width}x${board.height}`} className="w-full p-2 bg-base-200 dark:bg-dark-base-300 border border-base-300 dark:border-dark-base-300 rounded-md">
-                    <optgroup label="Estándar">
-                        {standardBoards.map(b => <option key={`${b.name}-${b.width}x${b.height}`} value={`${b.name}-${b.width}x${b.height}`}>{`${b.name} (${b.width}x${b.height})`}</option>)}
-                    </optgroup>
-                    {customBoards.length > 0 && <optgroup label="Personalizados">
-                        {customBoards.map(b => <option key={`${b.name}-${b.width}x${b.height}`} value={`${b.name}-${b.width}x${b.height}`}>{`${b.name} (${b.width}x${b.height})`}</option>)}
-                    </optgroup>}
-                    <option value="add_custom">Añadir personalizado...</option>
-                </select>
-              </div>
-              {isAddingCustom && (
-                  <div className="p-3 border border-dashed rounded-md space-y-2">
-                      <input type="text" placeholder="Nombre (e.g. Retal Taller)" value={customBoardData.name} onChange={e => setCustomBoardData({...customBoardData, name: e.target.value})} className="w-full p-2 bg-base-200 dark:bg-dark-base-300 border-base-300 dark:border-dark-base-300 rounded-md" />
-                      <div className="flex gap-2">
-                        <input type="number" placeholder="Largo (mm)" value={customBoardData.width} onChange={e => setCustomBoardData({...customBoardData, width: e.target.value})} className="w-1/2 p-2 bg-base-200 dark:bg-dark-base-300 border-base-300 dark:border-dark-base-300 rounded-md" />
-                        <input type="number" placeholder="Ancho (mm)" value={customBoardData.height} onChange={e => setCustomBoardData({...customBoardData, height: e.target.value})} className="w-1/2 p-2 bg-base-200 dark:bg-dark-base-300 border-base-300 dark:border-dark-base-300 rounded-md" />
-                      </div>
-                      <div className="flex gap-2">
-                        <button onClick={handleAddCustomBoard} className="w-full bg-brand-primary text-white p-2 rounded-md text-sm">Guardar Tablero</button>
-                        <button onClick={() => setIsAddingCustom(false)} className="w-full bg-base-300 dark:bg-dark-base-300 p-2 rounded-md text-sm">Cancelar</button>
-                      </div>
-                  </div>
-              )}
-              <div className="flex items-center gap-4">
-                  <div className="flex-1">
-                      <label htmlFor="kerf" className="block text-sm font-medium mb-1">Corte (Kerf) mm</label>
-                      <input id="kerf" type="number" value={kerf} onChange={e => setKerf(parseFloat(e.target.value))} className="w-full p-2 bg-base-200 dark:bg-dark-base-300 border border-base-300 dark:border-dark-base-300 rounded-md" />
-                  </div>
-              </div>
-              <div>
-                  <label className="block text-sm font-medium mb-1">Máquina</label>
-                  <div className="flex gap-2">
-                      <button onClick={() => setMachine('seccionadora')} className={`flex-1 p-2 rounded-md text-sm transition-colors ${machine === 'seccionadora' ? 'bg-brand-primary text-white' : 'bg-base-200 dark:bg-dark-base-300 hover:bg-base-300'}`}>Seccionadora</button>
-                      <button onClick={() => setMachine('cnc')} className={`flex-1 p-2 rounded-md text-sm transition-colors ${machine === 'cnc' ? 'bg-brand-primary text-white' : 'bg-base-200 dark:bg-dark-base-300 hover:bg-base-300'}`}>CNC</button>
-                  </div>
-              </div>
-               {machine === 'cnc' && (
-                  <div>
-                      <label htmlFor="cncSpeed" className="block text-sm font-medium mb-1">Velocidad CNC (mm/min)</label>
-                      <input id="cncSpeed" type="number" value={cncSpeed} onChange={e => setCncSpeed(parseInt(e.target.value))} className="w-full p-2 bg-base-200 dark:bg-dark-base-300 border border-base-300 dark:border-dark-base-300 rounded-md" />
-                  </div>
-              )}
-              {machine === 'seccionadora' && (
-                   <div className="flex items-center">
-                    <input type="checkbox" id="guillotine" checked={forceGuillotineCuts} onChange={(e) => setForceGuillotineCuts(e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary"/>
-                    <label htmlFor="guillotine" className="ml-2 block text-sm">Forzar cortes de guillotina</label>
-                </div>
-              )}
-            </div>
-          </section>
-
-          <hr className="my-6 border-base-300 dark:border-dark-base-300"/>
-
-          <section>
-              <h2 className="text-lg font-semibold mb-3">Costos (Presupuesto)</h2>
-              <div className="space-y-3">
-                  <div>
-                      <label className="block text-xs font-medium mb-1">Precio por Tablero</label>
-                      <input type="number" value={costs.boardPrice} onChange={e => setCosts({...costs, boardPrice: parseFloat(e.target.value)})} className="w-full p-2 text-sm bg-base-200 dark:bg-dark-base-300 border border-base-300 dark:border-dark-base-300 rounded-md" placeholder="0.00" />
-                  </div>
-                  <div>
-                      <label className="block text-xs font-medium mb-1">Precio Canto / Metro</label>
-                      <input type="number" value={costs.edgePricePerMeter} onChange={e => setCosts({...costs, edgePricePerMeter: parseFloat(e.target.value)})} className="w-full p-2 text-sm bg-base-200 dark:bg-dark-base-300 border border-base-300 dark:border-dark-base-300 rounded-md" placeholder="0.00" />
-                  </div>
-                  <div>
-                      <label className="block text-xs font-medium mb-1">Costo Máquina / Hora</label>
-                      <input type="number" value={costs.cncHourlyRate} onChange={e => setCosts({...costs, cncHourlyRate: parseFloat(e.target.value)})} className="w-full p-2 text-sm bg-base-200 dark:bg-dark-base-300 border border-base-300 dark:border-dark-base-300 rounded-md" placeholder="0.00" />
-                  </div>
-              </div>
-          </section>
-
-          <hr className="my-6 border-base-300 dark:border-dark-base-300"/>
-
-          {/* Pieces Management */}
-          <section>
-            <div className="flex justify-between items-center mb-3">
-                <h2 className="text-lg font-semibold">Lista de Piezas</h2>
-                <button onClick={() => fileInputRef.current?.click()} className="text-xs flex items-center gap-1 bg-base-200 dark:bg-dark-base-300 px-2 py-1 rounded hover:bg-base-300">
-                    <UploadIcon className="w-3 h-3"/> Importar CSV
-                </button>
-                <input type="file" ref={fileInputRef} onChange={handleCSVUpload} accept=".csv" className="hidden" />
-            </div>
-
-            <div className="space-y-2 mb-4">
-              {pieces.map(p => {
-                const edges = [];
-                if (p.edgeTop) edges.push('S');
-                if (p.edgeBottom) edges.push('I');
-                if (p.edgeLeft) edges.push('Izq');
-                if (p.edgeRight) edges.push('Der');
-                return (
-                <div key={p.id} className="bg-base-200 dark:bg-dark-base-300 p-2 rounded-md flex items-center justify-between">
-                  <div>
-                    <p className="font-semibold">{p.name} <span className="text-sm font-normal text-content-200 dark:text-dark-content-200">{p.reference ? `[${p.reference}] ` : ''}x{p.quantity}</span></p>
-                    <p className="text-sm text-content-200 dark:text-dark-content-200">
-                        {p.width} x {p.height} mm 
-                        {p.hasGrain && <GrainIcon className="inline w-4 h-4 ml-1" />}
-                        {edges.length > 0 && <span className="ml-2 text-blue-600 dark:text-blue-400 text-xs font-mono">C: {edges.join(',')}</span>}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => handleEditPiece(p)} className="p-1.5 hover:text-brand-primary"><PencilIcon /></button>
-                    <button onClick={() => handleDeletePiece(p.id)} className="p-1.5 hover:text-red-500"><TrashIcon /></button>
-                  </div>
-                </div>
-              )})}
-            </div>
-            
-            <div className="bg-base-200 dark:bg-dark-base-300 p-3 rounded-lg space-y-3">
-              <h3 className="font-semibold text-md">{editingPieceId ? 'Editar Pieza' : 'Añadir Pieza'}</h3>
-              <div className="flex gap-2">
-                  <div className="w-2/3">
-                    <select name="name" value={newPiece.name} onChange={handleInputChange} className="w-full p-2 bg-base-100 dark:bg-dark-base-200 border-base-300 dark:border-dark-base-300 rounded-md">
-                        {pieceNameOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                    </select>
-                    {newPiece.name === 'Otro...' && 
-                        <input type="text" name="customName" placeholder="Nombre personalizado" value={newPiece.customName} onChange={handleInputChange} className="w-full mt-2 p-2 bg-base-100 dark:bg-dark-base-200 border-base-300 dark:border-dark-base-300 rounded-md" />
-                    }
-                  </div>
-                  <div className="w-1/3">
-                      <input type="text" name="reference" placeholder="Ref." value={newPiece.reference} onChange={handleInputChange} className="w-full p-2 bg-base-100 dark:bg-dark-base-200 border-base-300 dark:border-dark-base-300 rounded-md" />
-                  </div>
-              </div>
-              <div className="flex gap-2">
-                <input type="number" name="width" placeholder="Largo (mm)" value={newPiece.width} onChange={handleInputChange} className="w-1/2 p-2 bg-base-100 dark:bg-dark-base-200 border-base-300 dark:border-dark-base-300 rounded-md" />
-                <input type="number" name="height" placeholder="Ancho (mm)" value={newPiece.height} onChange={handleInputChange} className="w-1/2 p-2 bg-base-100 dark:bg-dark-base-200 border-base-300 dark:border-dark-base-300 rounded-md" />
-              </div>
-              <input type="number" name="quantity" placeholder="Cantidad" value={newPiece.quantity} onChange={handleInputChange} className="w-full p-2 bg-base-100 dark:bg-dark-base-200 border-base-300 dark:border-dark-base-300 rounded-md" />
-              
-              <div>
-                <label className="block text-sm font-medium mb-1">Canteado</label>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                    <label className="flex items-center gap-2 p-2 bg-base-100 dark:bg-dark-base-200 rounded-md"><input type="checkbox" name="edgeTop" checked={newPiece.edgeTop} onChange={handleInputChange} className="h-4 w-4 rounded text-brand-primary"/> Superior</label>
-                    <label className="flex items-center gap-2 p-2 bg-base-100 dark:bg-dark-base-200 rounded-md"><input type="checkbox" name="edgeBottom" checked={newPiece.edgeBottom} onChange={handleInputChange} className="h-4 w-4 rounded text-brand-primary"/> Inferior</label>
-                    <label className="flex items-center gap-2 p-2 bg-base-100 dark:bg-dark-base-200 rounded-md"><input type="checkbox" name="edgeLeft" checked={newPiece.edgeLeft} onChange={handleInputChange} className="h-4 w-4 rounded text-brand-primary"/> Izquierdo</label>
-                    <label className="flex items-center gap-2 p-2 bg-base-100 dark:bg-dark-base-200 rounded-md"><input type="checkbox" name="edgeRight" checked={newPiece.edgeRight} onChange={handleInputChange} className="h-4 w-4 rounded text-brand-primary"/> Derecho</label>
-                </div>
-              </div>
-
-              <div className="flex items-center">
-                <input type="checkbox" name="hasGrain" id="hasGrain" checked={newPiece.hasGrain} onChange={handleInputChange} className="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary"/>
-                <label htmlFor="hasGrain" className="ml-2 block text-sm">Tiene Veta (No rotar)</label>
-              </div>
-
-              {newPiece.hasGrain && (
-                <input 
-                    list="grain-groups"
-                    type="text" 
-                    name="grainContinuityGroup" 
-                    placeholder="Grupo veta continua (opcional)" 
-                    value={newPiece.grainContinuityGroup} 
-                    onChange={handleInputChange} 
-                    className="w-full p-2 bg-base-100 dark:bg-dark-base-200 border-base-300 dark:border-dark-base-300 rounded-md" 
-                />
-              )}
-              <datalist id="grain-groups">
-                  {existingGrainGroups.map(group => <option key={group} value={group} />)}
-              </datalist>
-
-              <button onClick={handleAddPiece} className="w-full bg-brand-secondary text-white p-2 rounded-md flex items-center justify-center gap-2 hover:opacity-90 transition-opacity">
-                <PlusIcon className="w-5 h-5" />
-                {editingPieceId ? 'Actualizar Pieza' : 'Añadir Pieza'}
-              </button>
-            </div>
-          </section>
-          
-          <hr className="my-6 border-base-300 dark:border-dark-base-300"/>
-
-          <section className="space-y-3 pb-8 md:pb-0">
-              <button onClick={handleOptimize} disabled={isLoading} className="w-full bg-brand-primary text-white p-3 rounded-lg flex items-center justify-center gap-2 text-lg font-bold hover:opacity-90 transition-opacity disabled:opacity-50">
-                  <WandIcon className="w-6 h-6" />
-                  Optimizar
-              </button>
-              <div className="grid grid-cols-2 gap-2">
-                 <button onClick={() => setIsSaveModalOpen(true)} className="bg-base-200 dark:bg-dark-base-300 p-2 rounded-md flex items-center justify-center gap-2 hover:bg-base-300 dark:hover:bg-dark-base-100 transition-colors text-xs sm:text-sm">
-                    <SaveIcon/> Guardar Como...
-                </button>
-                <button onClick={handleManualSave} className="bg-base-200 dark:bg-dark-base-300 p-2 rounded-md flex items-center justify-center gap-2 hover:bg-base-300 dark:hover:bg-dark-base-100 transition-colors text-xs sm:text-sm">
-                    <CheckIcon/> Guardar Estado
-                </button>
-              </div>
-              <button onClick={handleResetProject} className="w-full bg-base-200 dark:bg-dark-base-300 p-2 rounded-md flex items-center justify-center gap-2 hover:bg-base-300 dark:hover:bg-dark-base-100 transition-colors text-red-600 dark:text-red-400 text-sm">
-                 <RefreshIcon/> Reiniciar Proyecto
-              </button>
-          </section>
-
-        </div>
-
-        {/* Results Column */}
-        <main id="results-column" className="flex-grow w-full md:w-2/3 lg:w-3/4 xl:w-4/5 p-4 md:p-6 bg-base-200 dark:bg-dark-base-100 h-auto md:overflow-y-auto md:h-full">
-          <PricingModal isOpen={isPricingModalOpen} onClose={() => setIsPricingModalOpen(false)} />
-          {isLoading && (
-            <div className="flex flex-col items-center justify-center min-h-[50vh] text-center">
-              <WandIcon className="w-16 h-16 text-brand-primary animate-pulse" />
-              <p className="mt-4 text-xl font-semibold">Optimizando, por favor espera...</p>
-              <p className="text-content-200 dark:text-dark-content-200">El algoritmo está buscando la mejor distribución para tus piezas.</p>
-            </div>
-          )}
-          {isExporting && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                <div className="bg-white dark:bg-dark-base-200 p-6 rounded-lg shadow-xl text-center">
-                    <DownloadIcon className="w-12 h-12 mx-auto text-brand-primary animate-bounce" />
-                    <p className="mt-4 font-semibold text-lg">Generando Reporte...</p>
-                </div>
-            </div>
-          )}
-          {error && (
-            <div className="flex flex-col items-center justify-center min-h-[50vh] text-center">
-              <div className="bg-red-100 dark:bg-red-900 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-200 px-4 py-3 rounded-lg relative max-w-md">
-                <strong className="font-bold flex items-center gap-2"><AlertTriangleIcon />¡Error!</strong>
-                <span className="block sm:inline mt-2">{error}</span>
-              </div>
-            </div>
-          )}
-          {!isLoading && !error && editedResult && (
-            <div className="space-y-6">
-              <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                    <h2 className="text-2xl font-bold">Resultados de la Optimización</h2>
-                    <p className="text-content-200 dark:text-dark-content-200">Se han generado {editedResult.layouts.length} tableros.</p>
-                </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                    <button onClick={handleGenerateLabels} className="px-4 py-2 bg-base-100 dark:bg-dark-base-200 rounded-md flex items-center gap-2 text-sm font-semibold hover:bg-base-300 dark:hover:bg-dark-base-300 border border-base-300 dark:border-dark-base-300"><TagIcon /> Etiquetas</button>
-                    <button onClick={() => handleGenerateReport('print')} className="px-4 py-2 bg-base-100 dark:bg-dark-base-200 rounded-md flex items-center gap-2 text-sm font-semibold hover:bg-base-300 dark:hover:bg-dark-base-300 border border-base-300 dark:border-dark-base-300"><PrinterIcon /> Imprimir</button>
-                    <button onClick={() => handleGenerateReport('download')} className="px-4 py-2 bg-base-100 dark:bg-dark-base-200 rounded-md flex items-center gap-2 text-sm font-semibold hover:bg-base-300 dark:hover:bg-dark-base-300 border border-base-300 dark:border-dark-base-300"><DownloadIcon /> PDF</button>
-                </div>
-              </header>
-
-              {warnings.length > 0 && (
-                <div className="p-4 bg-yellow-100 dark:bg-yellow-900 border-l-4 border-yellow-500 text-yellow-800 dark:text-yellow-200">
-                    <p className="font-bold flex items-center gap-2"><AlertTriangleIcon/>Advertencias de Fabricación</p>
-                    <ul className="list-disc list-inside mt-2 text-sm">
-                        {warnings.map((w, i) => <li key={i}>{w}</li>)}
-                    </ul>
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 text-center">
-                <div className="p-4 bg-base-100 dark:bg-dark-base-200 rounded-lg"><p className="text-sm text-content-200 dark:text-dark-content-200 flex items-center justify-center gap-1.5"><CubeIcon className="w-4 h-4"/>Total Tableros</p><p className="text-2xl font-bold">{editedResult.totalBoards}</p></div>
-                <div className="p-4 bg-base-100 dark:bg-dark-base-200 rounded-lg"><p className="text-sm text-content-200 dark:text-dark-content-200 flex items-center justify-center gap-1.5"><TrashIcon className="w-4 h-4"/>Desperdicio</p><p className="text-2xl font-bold">{editedResult.estimatedWastePercentage.toFixed(2)}%</p></div>
-                <div className="p-4 bg-base-100 dark:bg-dark-base-200 rounded-lg"><p className="text-sm text-content-200 dark:text-dark-content-200 flex items-center justify-center gap-1.5"><SawBladeIcon className="w-4 h-4"/>Corte Lineal</p><p className="text-2xl font-bold">{(editedResult.totalCorteMetrosLineales/1000).toFixed(2)} m</p></div>
-                <div className="p-4 bg-base-100 dark:bg-dark-base-200 rounded-lg"><p className="text-sm text-content-200 dark:text-dark-content-200 flex items-center justify-center gap-1.5"><SawBladeIcon className="w-4 h-4"/>Nº de Cortes</p><p className="text-2xl font-bold">{editedResult.totalNumberOfCuts || 'N/A'}</p></div>
-                 <div className="p-4 bg-base-100 dark:bg-dark-base-200 rounded-lg"><p className="text-sm text-content-200 dark:text-dark-content-200 flex items-center justify-center gap-1.5"><RulerIcon className="w-4 h-4"/>Canto Total</p><p className="text-2xl font-bold">{totalEdgeBandingMeters.toFixed(2)} m</p></div>
-              </div>
-
-              {estimatedTotalCost > 0 && (
-                  <div className="p-4 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg flex items-center justify-between">
-                      <div>
-                          <p className="text-green-800 dark:text-green-300 font-semibold flex items-center gap-2"><CalculatorIcon className="w-5 h-5"/>Estimación de Costos del Proyecto</p>
-                          <p className="text-xs text-green-700 dark:text-green-400 mt-1">Incluye material, canto y tiempo estimado de mecanizado.</p>
-                      </div>
-                      <p className="text-3xl font-bold text-green-700 dark:text-green-400">${estimatedTotalCost.toFixed(2)}</p>
-                  </div>
-              )}
-
-              <div>
-                <div className="border-b border-gray-200 dark:border-gray-700">
-                  <nav className="-mb-px flex space-x-4 overflow-x-auto" aria-label="Tabs">
-                    {editedResult.layouts.map((layout, index) => (
-                      <button
-                        key={index}
-                        onClick={() => setActiveLayoutTab(index)}
-                        className={`${
-                          activeLayoutTab === index
-                            ? 'border-brand-primary text-brand-primary'
-                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:border-gray-500'
-                        } whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm`}
-                      >
-                        Tablero {index + 1}
-                      </button>
-                    ))}
-                  </nav>
-                </div>
-                <div className="mt-4">
-                  {editedResult.layouts.map((layout, index) => (
-                    <div key={index} id={`layout-display-${index}`} style={{ display: activeLayoutTab === index ? 'block' : 'none' }}>
-                       <LayoutDisplay 
-                            board={board} 
-                            layout={layout}
-                            pieces={pieces}
-                            onLayoutChange={handleLayoutChange} 
-                            theme={theme}
-                            kerf={kerf}
-                            machine={machine}
-                            isActive={activeLayoutTab === index}
-                        />
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-            </div>
-          )}
-           {!isLoading && !error && !result && (
-                <div className="flex flex-col items-center justify-center min-h-[50vh] text-center">
-                    <CubeIcon className="w-20 h-20 text-gray-400 dark:text-gray-600" />
-                    <h2 className="mt-4 text-2xl font-semibold">Bienvenido al Optimizador de Corte</h2>
-                    <p className="mt-2 text-content-200 dark:text-dark-content-200 max-w-md">
-                        Configura las dimensiones de tu tablero, añade las piezas que necesitas cortar o impórtalas desde un CSV y haz clic en "Optimizar" para generar un plan de corte eficiente y un presupuesto.
-                    </p>
-                </div>
-            )}
-        </main>
-      </div>
     </div>
   );
 };
